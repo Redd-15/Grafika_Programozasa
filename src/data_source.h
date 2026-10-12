@@ -7,17 +7,6 @@
 
 #include "telemetry.h"
 
-// Every dashboard value that can be bound to a CAN signal.
-enum class FrameField {
-    Apps, SteeringDeg, BpsBar,
-    MotorTemp, MaxCellTemp, InverterTemp,
-    TsState, Bender, PackV, UnbalancePct, SocPct, MotorCurrentA,
-    LvVoltage, CarState, SpeedKmh, MotorRpm,
-    PowerLimitKw, RpmLimit, MotorCooling, InverterCooling, WheelSizeMm, RegenMaxA,
-    Count
-};
-constexpr int kFieldCount = static_cast<int>(FrameField::Count);
-
 struct FieldInfo {
     const char* key;      // stable id used in the config file
     const char* label;    // shown in the UI
@@ -61,5 +50,14 @@ struct SourceConfig {
     bool load(const std::string& file);
     bool save() const;
 };
+
+// True when two binding strings name the same signal: equal, or one is a ".suffix" of the
+// other ("SOC" and "BMS_Status.SOC").
+bool SameSignal(const std::string& a, const std::string& b);
+// Binds `signal` to `field` and unbinds it from every other field, so one signal
+// drives at most one dashboard value. Unbound fields get scale 1 / offset 0 again.
+void AssignSignal(SourceConfig& config, FrameField field, const std::string& signal);
+// Unbinds a field (empty signal, scale 1, offset 0).
+void ClearSignal(SourceConfig& config, FrameField field);
 
 std::unique_ptr<TelemetrySource> CreateSource(const SourceConfig& config);

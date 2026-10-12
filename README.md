@@ -3,8 +3,8 @@
 Real-time telemetry dashboard for a Formula Student car, built with OpenGL 3.3 and Dear ImGui.
 
 - **Center:** a 3D car you can orbit horizontally by dragging with the left mouse button. The front wheels steer and all four wheels spin from the steering-angle and speed telemetry, and the cockpit steering wheel turns with the input. A grid floor scrolls with vehicle speed.
-- **Left:** car state (OFF → STARTUP → TSON → R2D), LV battery (10–15 V), driver inputs (APPS, BPS, steering), temperatures (with warning/critical markers and a 30 s trend), and the accumulator (TS state, Bender, pack V, unbalance).
-- **Right:** the dash settings group (power limit, RPM limit, cooling modes, wheel size, regen max) shown read-only, plus speed / RPM / pedal graphs.
+- **Left:** car state (STARTUP → STANDBY → TS ON → R2D, plus ERROR), LV battery (10–15 V), driver inputs (APPS, BPS, steering), temperatures (with warning/critical markers and a 30 s trend), and the accumulator (TS state, Bender, pack V, unbalance).
+- **Right:** the dash settings group (power limit, RPM limit, motor / inverter pump overrides, wheel size, max recuperation %, frequency profile) shown read-only, plus speed / RPM / pedal graphs.
 
 ## Build
 
@@ -32,7 +32,7 @@ build/fs_telemetry.exe
 
 ## Data sources
 
-Click the source pill in the top bar (for example `SIMULATION` or `UDP :5005`) to open the data-source window. The choice and the signal mapping are saved to `data_source.json` next to the executable.
+Click the source pill in the top bar (for example `SIMULATION` or `UDP :5005`) to open the data-source window. The choice and the signal mapping are saved to `data_source.json` next to the executable. On first start the mapping comes from `assets/data_source.default.json`, which binds every dashboard value to its signal in the car's DBC (`src/ERMe01_v2_4.dbc`). The car-state, TS-state and Bender enums use the DBC value numbers, so raw CAN values map 1:1.
 
 - **Simulation:** the built-in simulated car.
 - **UDP / JSON:** listens on a bind address and port for datagrams carrying a JSON object (or several, one per line) with the CAN messages and signals decoded by the car. The JSON is flattened into dotted paths:

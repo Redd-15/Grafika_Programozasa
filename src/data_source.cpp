@@ -35,10 +35,11 @@ const FieldInfo kFields[kFieldCount] = {
     {"motor_rpm",        "Motor rpm",          "Vehicle", false},
     {"power_limit_kw",   "Power limit kW",     "Settings", false},
     {"rpm_limit",        "RPM limit",          "Settings", false},
-    {"motor_cooling",    "Motor cooling",      "Settings", true},
-    {"inverter_cooling", "Inverter cooling",   "Settings", true},
+    {"motor_cooling",    "Motor pump override %",    "Settings", false},
+    {"inverter_cooling", "Inverter pump override %", "Settings", false},
     {"wheel_size_mm",    "Wheel size mm",      "Settings", false},
-    {"regen_max_a",      "Regen max A",        "Settings", false},
+    {"max_recuperation_pct", "Max recuperation %", "Settings", false},
+    {"frequency_profile",    "Frequency profile",  "Settings", true},
 };
 
 // "TS_ON", "ts on" and "TSON" all compare equal.
@@ -50,20 +51,44 @@ std::string Normalize(const std::string& s)
     return out;
 }
 
-// Resolves an enum from either its name or its numeric index.
+// Value names from the DBC (VAL_ tables), accepted when a signal arrives as text.
+const char* DbcName(CarState s)
+{
+    static const char* n[] = {"STARTUP", "STANDBY", "TS_ON", "R2D", "ERROR"};
+    return n[static_cast<int>(s)];
+}
+const char* DbcName(TSState s)
+{
+    static const char* n[] = {"TS_ON", "TS_PRECHARGE", "TS_OFF", "TS_ERROR"};
+    return n[static_cast<int>(s)];
+}
+const char* DbcName(BenderState s)
+{
+    static const char* n[] = {"BENDER_IMD_OFF_OR_SHORT", "BENDER_NORMAL", "BENDER_UNDERVOLTAGE",
+                              "BENDER_SPEED_START_MEASUREMENT", "BENDER_DEVICE_ERROR",
+                              "BENDER_CONNECTION_FAULT", "BENDER_HARD_ERROR"};
+    return n[static_cast<int>(s)];
+}
+
+const char* DbcName(FrequencyProfile p)   // names from the MPCU firmware enum
+{
+    static const char* n[] = {"FREQUENCY_PROFILE_AUTO", "FREQUENCY_PROFILE_LOW", "FREQUENCY_PROFILE_HIGH",
+                              "FREQUENCY_PROFILE_MANUAL"};
+    return n[static_cast<int>(p)];
+}
+
+// Resolves an enum from its numeric CAN value, its DBC value name or its display name.
 template <typename E>
 bool ToEnum(const SignalValue& v, const SignalBinding& b, int count, E& out)
 {
     if (!v.isNumber) {
         const std::string want = Normalize(v.text);
         for (int i = 0; i < count; ++i) {
-            if (Normalize(ToString(static_cast<E>(i))) == want) {
-                out = static_cast<E>(i);
+            const E e = static_cast<E>(i);
+            if (Normalize(DbcName(e)) == want || Normalize(ToString(e)) == want) {
+                out = e;
                 return true;
             }
-        }
-        if constexpr (std::is_same_v<E, CarState>) {
-            if (want == "READYTODRIVE") { out = CarState::R2D; return true; }
         }
         char* end = nullptr;
         double d = std::strtod(v.text.c_str(), &end);
@@ -101,11 +126,10 @@ bool ApplyField(FrameField field, const SignalValue& v, const SignalBinding& b, 
     float x = 0.0f;
     CarSettings& s = f.settings;
     switch (field) {
-    case FrameField::TsState:         return ToEnum(v, b, 4, f.tsState);
-    case FrameField::Bender:          return ToEnum(v, b, 3, f.bender);
-    case FrameField::CarState:        return ToEnum(v, b, 4, f.carState);
-    case FrameField::MotorCooling:    return ToEnum(v, b, 5, s.motorCooling);
-    case FrameField::InverterCooling: return ToEnum(v, b, 5, s.inverterCooling);
+    case FrameField::TsState:         return ToEnum(v, b, kTsStateCount, f.tsState);
+    case FrameField::Bender:          return ToEnum(v, b, kBenderStateCount, f.bender);
+    case FrameField::CarState:        return ToEnum(v, b, kCarStateCount, f.carState);
+    case FrameField::FrequencyProfile: return ToEnum(v, b, kFrequencyProfileCount, s.frequencyProfile);
     default: break;
     }
     if (!ToNumber(v, b, x)) return false;
@@ -125,8 +149,10 @@ bool ApplyField(FrameField field, const SignalValue& v, const SignalBinding& b, 
     case FrameField::MotorRpm:        f.motorRpm = x; break;
     case FrameField::PowerLimitKw:    s.powerLimitKw = x; break;
     case FrameField::RpmLimit:        s.rpmLimit = static_cast<int>(std::lround(x)); break;
+    case FrameField::MotorCooling:    s.motorCooling = static_cast<int>(std::lround(x)); break;
+    case FrameField::InverterCooling: s.inverterCooling = static_cast<int>(std::lround(x)); break;
     case FrameField::WheelSizeMm:     s.wheelSizeMm = std::max(1, static_cast<int>(std::lround(x))); break;
-    case FrameField::RegenMaxA:       s.regenMaxA = static_cast<int>(std::lround(x)); break;
+    case FrameField::MaxRecuperationPct: s.maxRecuperationPct = static_cast<int>(std::lround(x)); break;
     default: return false;
     }
     return true;
@@ -156,10 +182,11 @@ std::string FormatField(FrameField field, const TelemetryFrame& f)
     case FrameField::MotorRpm:        return num(f.motorRpm, "%.0f");
     case FrameField::PowerLimitKw:    return num(s.powerLimitKw, "%.0f");
     case FrameField::RpmLimit:        return std::to_string(s.rpmLimit);
-    case FrameField::MotorCooling:    return ToString(s.motorCooling);
-    case FrameField::InverterCooling: return ToString(s.inverterCooling);
+    case FrameField::MotorCooling:    return s.motorCooling < 0 ? "AUTO" : std::to_string(s.motorCooling);
+    case FrameField::InverterCooling: return s.inverterCooling < 0 ? "AUTO" : std::to_string(s.inverterCooling);
     case FrameField::WheelSizeMm:     return std::to_string(s.wheelSizeMm);
-    case FrameField::RegenMaxA:       return std::to_string(s.regenMaxA);
+    case FrameField::MaxRecuperationPct: return std::to_string(s.maxRecuperationPct);
+    case FrameField::FrequencyProfile: return ToString(s.frequencyProfile);
     default: return {};
     }
 }
@@ -194,6 +221,15 @@ bool SourceConfig::load(const std::string& file)
                 }
             }
         }
+        // A signal may drive only one value: drop later duplicates (e.g. from a hand-edited file).
+        for (int i = 0; i < kFieldCount; ++i)
+            for (int k = 0; k < i; ++k)
+                if (SameSignal(bindings[k].signal, bindings[i].signal)) {
+                    std::fprintf(stderr, "%s: \"%s\" is already bound to %s, ignoring it for %s\n", file.c_str(),
+                                 bindings[i].signal.c_str(), kFields[k].key, kFields[i].key);
+                    bindings[i] = SignalBinding{};
+                    break;
+                }
     } catch (const std::exception& e) {
         std::fprintf(stderr, "Could not read %s: %s\n", file.c_str(), e.what());
         return false;
@@ -217,6 +253,29 @@ bool SourceConfig::save() const
     if (!out) return false;
     out << j.dump(2) << '\n';
     return static_cast<bool>(out);
+}
+
+bool SameSignal(const std::string& a, const std::string& b)
+{
+    if (a.empty() || b.empty()) return false;
+    if (a == b) return true;
+    const std::string& longer = a.size() > b.size() ? a : b;
+    const std::string& shorter = a.size() > b.size() ? b : a;
+    return longer.size() > shorter.size() + 1 && longer[longer.size() - shorter.size() - 1] == '.' &&
+           longer.compare(longer.size() - shorter.size(), shorter.size(), shorter) == 0;
+}
+
+void ClearSignal(SourceConfig& config, FrameField field)
+{
+    config.bindings[static_cast<int>(field)] = SignalBinding{};
+}
+
+void AssignSignal(SourceConfig& config, FrameField field, const std::string& signal)
+{
+    const int target = static_cast<int>(field);
+    for (int i = 0; i < kFieldCount; ++i)
+        if (i != target && SameSignal(config.bindings[i].signal, signal)) ClearSignal(config, static_cast<FrameField>(i));
+    config.bindings[target].signal = signal;
 }
 
 std::unique_ptr<TelemetrySource> CreateSource(const SourceConfig& config)

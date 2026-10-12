@@ -160,8 +160,14 @@ UdpSource::UdpSource(const UdpConfig& config, const Bindings& bindings) : config
     SocketHandle s = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (s == FS_INVALID_SOCKET) { stats_.error = "Could not create socket"; return; }
 
+    // Exclusive port: a second instance must fail with "already in use" rather than
+    // share the port and silently receive nothing (unicast goes to only one socket).
     int yes = 1;
-    ::setsockopt(s, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&yes), sizeof yes);
+#ifdef _WIN32
+    ::setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, reinterpret_cast<const char*>(&yes), sizeof yes);
+#else
+    (void)yes;
+#endif
     int bufSize = 1 << 20;
     ::setsockopt(s, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&bufSize), sizeof bufSize);
     // Short receive timeout so the thread notices shutdown.
@@ -282,6 +288,8 @@ const std::string* UdpSource::resolve(int field)
 void UdpSource::update(double time, float, TelemetryFrame& frame)
 {
     std::lock_guard<std::mutex> lock(mutex_);
+    const auto now = Clock::now();
+    frame.valid.reset();
     for (int i = 0; i < kFieldCount; ++i) {
         FieldStatus& st = status_[i];
         if (bindings_[i].signal.empty()) {
@@ -290,8 +298,16 @@ void UdpSource::update(double time, float, TelemetryFrame& frame)
         }
         const std::string* path = resolve(i);
         if (!path) { st.state = BindState::Missing; continue; }
-        st.state = ApplyField(static_cast<FrameField>(i), signals_[*path].value, bindings_[i], frame) ? BindState::Ok
-                                                                                                      : BindState::BadValue;
+        const Entry& e = signals_[*path];
+        st.state = ApplyField(static_cast<FrameField>(i), e.value, bindings_[i], frame) ? BindState::Ok
+                                                                                         : BindState::BadValue;
+        // Valid only while fresh: a signal that stops arriving falls back to "--". Settings are
+        // the exception: MPCU_Settings is event-driven (no cycle time in the DBC), so the last
+        // received value is kept.
+        const bool latching = i >= static_cast<int>(FrameField::PowerLimitKw);
+        const double age = std::chrono::duration<double>(now - e.time).count();
+        if (st.state == BindState::Ok && (latching || age < config_.timeoutSec))
+            frame.valid.set(static_cast<std::size_t>(i));
     }
 
     // Packets per second over ~0.5 s windows.

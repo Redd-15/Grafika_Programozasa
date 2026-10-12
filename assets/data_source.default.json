@@ -1,0 +1,37 @@
+{
+  "signals": {
+    "apps":             { "signal": "APPS_NormalData.AppsData",        "scale": 1,     "offset": 0 },
+    "steering_deg":     { "signal": "FSU_Data.SteeringAngle",          "scale": 0.144, "offset": -150.48 },
+    "bps_bar":          { "signal": "RSU_Bps.Pressure",                "scale": 1,     "offset": 0 },
+
+    "motor_temp":       { "signal": "MPCU_Values.MotorTemperature",    "scale": 1,     "offset": 0 },
+    "max_cell_temp":    { "signal": "AMS_Stat.MaxTemp",                "scale": 1,     "offset": 0 },
+    "inverter_temp":    { "signal": "MPCU_Values.InverterTemperature", "scale": 1,     "offset": 0 },
+
+    "ts_state":         { "signal": "AMS_Stat.TsState",                "scale": 1,     "offset": 0 },
+    "bender":           { "signal": "AMS_Stat.BenderState",            "scale": 1,     "offset": 0 },
+    "pack_v":           { "signal": "AMS_Stat.SumVoltage",             "scale": 1,     "offset": 0 },
+    "unbalance_pct":    { "signal": "AMS_Stat.UnbalancedRate",         "scale": 1,     "offset": 0 },
+    "soc_pct":          { "signal": "AMS_Stat.Soc",                    "scale": 1,     "offset": 0 },
+    "motor_current_a":  { "signal": "AMS_Stat.IsaCurrent",             "scale": 1,     "offset": 0 },
+
+    "lv_voltage":       { "signal": "AMS_Stat.KsVoltage",              "scale": 1,     "offset": 0 },
+    "car_state":        { "signal": "MPCU_VehicleState.VehicleState",  "scale": 1,     "offset": 0 },
+    "speed_kmh":        { "signal": "MPCU_Values.SpeedKmph",           "scale": 1,     "offset": 0 },
+    "motor_rpm":        { "signal": "MPCU_Values.MotorRpm",            "scale": 1,     "offset": 0 },
+
+    "power_limit_kw":   { "signal": "MPCU_Settings.PowerLimiter",      "scale": 0.001, "offset": 0 },
+    "rpm_limit":        { "signal": "MPCU_Settings.MaxMotorRpm",       "scale": 1,     "offset": 0 },
+    "motor_cooling":    { "signal": "MPCU_Settings.MotorPumpOverride", "scale": 1,     "offset": 0 },
+    "inverter_cooling": { "signal": "MPCU_Settings.InverterPumpOverride", "scale": 1,  "offset": 0 },
+    "wheel_size_mm":    { "signal": "MPCU_Settings.WheelDiameter",     "scale": 1,     "offset": 0 },
+    "max_recuperation_pct": { "signal": "MPCU_Settings.MaxRecuperationRate", "scale": 1, "offset": 0 },
+    "frequency_profile":    { "signal": "MPCU_Settings.FrequencyProfile",    "scale": 1, "offset": 0 }
+  },
+  "source": "udp",
+  "udp": {
+    "bind_address": "0.0.0.0",
+    "port": 7777,
+    "timeout_s": 2.0
+  }
+}

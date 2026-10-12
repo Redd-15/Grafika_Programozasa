@@ -1,0 +1,622 @@
+VERSION "2.4"
+
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_SGTYPE_
+    SIG_TYPE_REF_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    SIGTYPE_VALTYPE_
+    BO_TX_BU_
+    BA_DEF_REL_
+    BA_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_: 
+BU_: MPCU AMS APPS Dash RSU FSU Telemetry Charger
+
+// ===========================================================================
+// MPCU (Main Power & Control Unit)
+// ===========================================================================
+
+BO_ 100 MPCU_VehicleState: 1 MPCU
+   SG_ VehicleState : 7|8@0+ (1,0) [0|4] "" Vector__XXX
+
+BO_ 900 MPCU_SystemStatues: 7 MPCU
+   SG_ AppsState : 7|8@0+ (1,0) [0|3] "" Vector__XXX
+   SG_ AmsState : 15|8@0+ (1,0) [0|3] "" Vector__XXX
+   SG_ RsuState : 23|8@0+ (1,0) [0|3] "" Vector__XXX
+   SG_ FsuState : 31|8@0+ (1,0) [0|3] "" Vector__XXX
+   SG_ TelemetryState : 39|8@0+ (1,0) [0|3] "" Vector__XXX
+   SG_ InverterState : 47|8@0+ (1,0) [0|3] "" Vector__XXX
+   SG_ DashState : 55|8@0+ (1,0) [0|3] "" Vector__XXX
+
+BO_ 902 MPCU_Settings: 64 MPCU
+   SG_ PowerLimiter : 7|32@0- (1,0) [0|100000] "" Vector__XXX
+   SG_ MaxMotorRpm : 39|32@0- (1,0) [0|6500] "RPM" Vector__XXX
+   SG_ FanOverrideBitflag : 71|32@0- (1,0) [0|31] "" Vector__XXX
+   SG_ Fan1Override : 103|32@0- (1,0) [-1|100] "%" Vector__XXX
+   SG_ Fan2Override : 135|32@0- (1,0) [-1|100] "%" Vector__XXX
+   SG_ Fan3Override : 167|32@0- (1,0) [-1|100] "%" Vector__XXX
+   SG_ MotorPumpOverride : 199|32@0- (1,0) [-1|100] "%" Vector__XXX
+   SG_ InverterPumpOverride : 231|32@0- (1,0) [-1|100] "%" Vector__XXX
+   SG_ SkipAmsCheck : 263|32@0- (1,0) [0|1] "" Vector__XXX
+   SG_ SkipAppsCheck : 295|32@0- (1,0) [0|1] "" Vector__XXX
+   SG_ SkipInverterCheck : 327|32@0- (1,0) [0|1] "" Vector__XXX
+   SG_ WheelDiameter : 359|32@0+ (1,0) [300|600] "mm" Vector__XXX
+   SG_ BootDelay : 391|32@0+ (1,0) [0|20] "s" Vector__XXX
+
+BO_ 905 MPCU_Error: 1 MPCU
+   SG_ ErrorCode : 7|8@0+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 906 MPCU_Warning: 1 MPCU
+   SG_ WarningCode : 7|8@0+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 2011 MPCU_Values: 24 MPCU
+   SG_ InverterTemperature : 7|16@0- (0.1,0) [0|100] "C" Vector__XXX
+   SG_ BusVoltage : 151|16@0+ (1,0) [0|900] "V" Vector__XXX
+   SG_ MotorTemperature : 31|16@0- (0.1,0) [0|200] "C" Vector__XXX
+   SG_ MotorRpm : 47|16@0- (1,0) [0|10000] "RPM" Vector__XXX
+   SG_ LemCurrent : 63|16@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ Fan1Speed : 79|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ Fan2Speed : 87|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ Fan3Speed : 95|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ MotorPumpSpeed : 103|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ InverterPumpSpeed : 111|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ InverterErrorStates : 119|16@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ InverterWarningStates : 135|16@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ SpeedKmph : 167|16@0- (0.1,0) [0|200] "km/h" Vector__XXX
+
+BO_ 48 MPCU_InverterForceRequest: 2 MPCU
+   SG_ Force : 0|16@1- (1,0) [0|0] "" Vector__XXX
+
+BO_ 1502 MPCU_StartupAppsReq: 1 MPCU
+   SG_ State : 7|8@0+ (1,0) [0|1] "" APPS
+
+BO_ 1504 MPCU_StartupRsuReq: 1 MPCU
+   SG_ State : 7|8@0+ (1,0) [0|1] "" RSU
+
+BO_ 1505 MPCU_StartupTelemetryReq: 1 MPCU
+   SG_ State : 7|8@0+ (1,0) [0|1] "" Telemetry
+
+BO_ 1519 MPCU_StartupFsuReq: 1 MPCU
+   SG_ State : 7|8@0+ (1,0) [0|1] "" FSU
+
+BO_ 1638 MPCU_ForceStateDebugReq: 1 Vector__XXX
+   SG_ State : 7|8@0+ (1,0) [0|4] "" MPCU
+
+BO_ 1639 MPCU_SwitchSystemPowerReq: 2 Vector__XXX
+   SG_ System : 7|8@0+ (1,0) [0|6] "" MPCU
+   SG_ Power : 15|8@0+ (1,0) [0|1] "" MPCU
+
+BO_ 2001 MPCU_StateRequestReq: 1 Vector__XXX
+   SG_ State : 7|8@0+ (1,0) [0|4] "" MPCU
+
+BO_ 2003 MPCU_GetSettingsReq: 0 Vector__XXX
+
+BO_ 2004 MPCU_ModifySettingsReq: 5 Vector__XXX
+   SG_ Index : 7|8@0+ (1,0) [0|255] "" MPCU
+   SG_ Value : 15|32@0- (1,0) [0|0] "" MPCU
+
+BO_ 2005 MPCU_ClearAmsErrorReq: 0 Vector__XXX
+
+// ===========================================================================
+// APPS (Accelerator Pedal Position Sensor)
+// ===========================================================================
+
+BO_ 150 APPS_NormalData: 6 APPS
+   SG_ AppsData : 7|16@0+ (0.1,0) [0|1000] "" Vector__XXX
+   SG_ Apps1Interpolated : 23|16@0+ (0.1,0) [0|1000] "" Vector__XXX
+   SG_ Apps2Interpolated : 39|16@0+ (0.1,0) [0|1000] "" Vector__XXX
+
+BO_ 151 APPS_ErrorData: 6 APPS
+   SG_ ErrorCode : 7|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ ErrorValue : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+
+// ===========================================================================
+// AMS (Accumulator Management System)
+// ===========================================================================
+
+BO_ 450 AMS_Stat: 48 AMS
+   SG_ MinTemp : 7|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ AvgTemp : 23|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ MaxTemp : 39|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ MinVoltage : 55|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ AvgVoltage : 71|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ MaxVoltage : 87|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ SumVoltage : 103|32@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ IsaVoltage : 135|32@0- (0.001,0) [0|5] "V" Vector__XXX
+   SG_ IsaCurrent : 167|32@0- (0.001,0) [0|5] "A" Vector__XXX
+   SG_ IsaPower : 199|32@0- (1,0) [0|0] "W" Vector__XXX
+   SG_ Soc : 231|16@0+ (0.1,0) [0|0] "%" Vector__XXX
+   SG_ BeingDischarged : 247|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ TsState : 255|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ BenderState : 263|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ BalancingState : 271|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ LowestVoltageCellId : 279|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ UnbalancedRate : 287|16@0+ (0.1,0) [0|1000] "%" Vector__XXX
+   SG_ ThermalReductionRate : 303|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ VoltageReductionRate : 311|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ UnbalancedReductionRate : 319|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ FansDutycycle : 327|8@0+ (1,0) [0|100] "%" Vector__XXX
+   SG_ KsVoltage : 335|8@0+ (0.1,0) [0|15] "V" Vector__XXX
+
+BO_ 451 AMS_Error: 5 AMS
+   SG_ ErrorCode : 7|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ ErrorValue : 15|32@0+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 452 AMS_Warning: 5 AMS
+   SG_ WarningCode : 7|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ WarningValue : 15|32@0+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 453 AMS_AvailableCurrent: 10 AMS
+   SG_ MaxDischargeCurrent : 7|16@0+ (1,0) [0|0] "A" Vector__XXX
+   SG_ MaxChargeCurrent : 23|16@0+ (1,0) [0|0] "A" Vector__XXX
+   SG_ MaxDischargePower : 39|32@0+ (1,0) [0|0] "W" Vector__XXX
+   SG_ MaxChargePower : 71|32@0+ (1,0) [0|0] "W" Vector__XXX
+
+BO_ 500 AMS_Voltages1: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+
+BO_ 501 AMS_Voltages2: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+
+BO_ 502 AMS_Voltages3: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+
+BO_ 503 AMS_Voltages4: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+
+BO_ 504 AMS_Voltages5: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.0001,0) [0|5] "V" Vector__XXX
+
+BO_ 510 AMS_Temperatures1: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+
+BO_ 511 AMS_Temperatures2: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+
+BO_ 512 AMS_Temperatures3: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+
+BO_ 513 AMS_Temperatures4: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+
+BO_ 514 AMS_Temperatures5: 48 AMS
+   SG_ Cell1 : 7|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell2 : 23|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell3 : 39|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell4 : 55|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell5 : 71|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell6 : 87|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell7 : 103|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell8 : 119|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell9 : 135|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell10 : 151|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell11 : 167|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell12 : 183|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell13 : 199|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell14 : 215|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell15 : 231|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell16 : 247|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell17 : 263|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell18 : 279|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell19 : 295|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell20 : 311|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell21 : 327|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+   SG_ Cell22 : 343|16@0+ (0.1,0) [0|100] "C" Vector__XXX
+
+BO_ 400 AMS_TsOnOffReq: 1 Vector__XXX
+   SG_ TsOnOff : 7|8@0+ (1,0) [0|1] "" AMS
+
+BO_ 401 AMS_SetMaxDischargePwrReq: 4 Vector__XXX
+   SG_ Power : 7|32@0+ (1,0) [0|100000] "W" AMS
+
+BO_ 402 AMS_ResetSocCounterReq: 8 Vector__XXX
+
+BO_ 403 AMS_SetBalancingModeReq: 8 Vector__XXX
+   SG_ Mode : 7|8@0+ (1,0) [0|0] "" AMS
+
+// ===========================================================================
+// RSU (Rear Sensor Unit)
+// ===========================================================================
+
+BO_ 1400 RSU_Data: 48 RSU
+   SG_ LWheelRpm : 7|16@0- (1,0) [0|0] "" Vector__XXX
+   SG_ RWheelRpm : 23|16@0- (1,0) [0|0] "" Vector__XXX
+   SG_ LSuspension : 39|16@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ RSuspension : 55|16@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ LTireTemp1 : 71|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp2 : 87|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp3 : 103|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp4 : 119|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp5 : 135|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp6 : 151|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp7 : 167|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp8 : 183|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp1 : 199|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp2 : 215|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp3 : 231|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp4 : 247|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp5 : 263|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp6 : 279|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp7 : 295|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp8 : 311|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ InverterCoolantTemp1 : 327|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ InverterCoolantTemp2 : 343|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ MotorCoolantTemp1 : 359|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ MotorCoolantTemp2 : 375|16@0- (0.01,0) [0|200] "C" Vector__XXX
+
+BO_ 1408 RSU_Bps: 2 RSU
+   SG_ Pressure : 7|16@0- (0.01,0) [0|0] "" MPCU,Dash
+
+// ===========================================================================
+// FSU (Front Sensor Unit)
+// ===========================================================================
+
+BO_ 1401 FSU_Data: 48 FSU
+   SG_ LWheelRpm : 7|16@0- (1,0) [0|0] "" Vector__XXX
+   SG_ RWheelRpm : 23|16@0- (1,0) [0|0] "" Vector__XXX
+   SG_ LSuspension : 39|16@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ RSuspension : 55|16@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ LTireTemp1 : 71|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp2 : 87|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp3 : 103|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp4 : 119|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp5 : 135|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp6 : 151|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp7 : 167|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ LTireTemp8 : 183|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp1 : 199|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp2 : 215|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp3 : 231|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp4 : 247|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp5 : 263|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp6 : 279|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp7 : 295|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ RTireTemp8 : 311|16@0- (0.01,0) [0|200] "C" Vector__XXX
+   SG_ SteeringAngle : 327|16@0- (1,0) [0|0] "" Vector__XXX
+
+// ===========================================================================
+// Telemetry (Wireless Logging/Data Unit)
+// ===========================================================================
+
+BO_ 1606 Telemetry_ConnectionStat: 1 Telemetry
+   SG_ Connection : 7|8@0+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 1601 Telemetry_FsInfoReq: 0 Vector__XXX
+
+BO_ 1602 Telemetry_FsInfoRsp: 12 Telemetry
+   SG_ FsStatus : 7|8@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ TotalSectors : 15|32@0+ (1,0) [0|0] "" Vector__XXX
+   SG_ FreeSectors : 47|32@0+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 1604 Telemetry_DatetimeReq: 0 Vector__XXX
+
+BO_ 1605 Telemetry_DatetimeRsp: 7 Telemetry
+   SG_ Year : 7|8@0+ (1,0) [0|3000] "" Vector__XXX
+   SG_ Month : 15|8@0+ (1,0) [0|12] "" Vector__XXX
+   SG_ Day : 23|8@0+ (1,0) [0|31] "" Vector__XXX
+   SG_ Weekday : 31|8@0+ (1,0) [0|4] "" Vector__XXX
+   SG_ Hours : 39|8@0+ (1,0) [0|24] "" Vector__XXX
+   SG_ Minutes : 47|8@0+ (1,0) [0|60] "" Vector__XXX
+   SG_ Seconds : 55|8@0+ (1,0) [0|60] "" Vector__XXX
+
+BO_ 1603 Telemetry_SetDatetimeReq: 7 Vector__XXX
+   SG_ Year : 7|8@0+ (1,0) [0|3000] "" Telemetry
+   SG_ Month : 15|8@0+ (1,0) [0|12] "" Telemetry
+   SG_ Day : 23|8@0+ (1,0) [0|31] "" Telemetry
+   SG_ Weekday : 31|8@0+ (1,0) [0|4] "" Telemetry
+   SG_ Hours : 39|8@0+ (1,0) [0|24] "" Telemetry
+   SG_ Minutes : 47|8@0+ (1,0) [0|60] "" Telemetry
+   SG_ Seconds : 55|8@0+ (1,0) [0|60] "" Telemetry
+
+// ===========================================================================
+// Dash (Dashboard / Steering Wheel UI)
+// ===========================================================================
+
+BO_ 2012 Dash_Status: 1 Dash
+   SG_ SwheelConnected : 7|8@0+ (1,0) [0|1] "" MPCU
+
+// ===========================================================================
+// Charger (Offboard / Onboard Charger Systems)
+// ===========================================================================
+
+// No Tx messages assigned directly to Charger. Nodes are defined in BU_.
+
+
+CM_ BU_ MPCU "Main Power & Control Unit";
+CM_ BU_ AMS "Accumulator Management System";
+CM_ BU_ APPS "Accelerator Pedal Position Sensor";
+CM_ BU_ Dash "Dashboard";
+CM_ BU_ RSU "Rear Sensor Unit";
+CM_ BU_ FSU "Front Sensor Unit";
+
+BA_DEF_ BU_ "ProtocolVersionMajor" INT 0 255;
+BA_DEF_ BU_ "ProtocolVersionMinor" INT 0 255;
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+
+BA_DEF_DEF_ "ProtocolVersionMajor" 1;
+BA_DEF_DEF_ "ProtocolVersionMinor" 0;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+
+BA_ "ProtocolVersionMajor" BU_ MPCU 5;
+BA_ "ProtocolVersionMinor" BU_ MPCU 6;
+BA_ "ProtocolVersionMajor" BU_ AMS 3;
+BA_ "ProtocolVersionMinor" BU_ AMS 0;
+BA_ "ProtocolVersionMajor" BU_ APPS 1;
+BA_ "ProtocolVersionMinor" BU_ APPS 0;
+BA_ "ProtocolVersionMajor" BU_ Dash 1;
+BA_ "ProtocolVersionMinor" BU_ Dash 0;
+BA_ "ProtocolVersionMajor" BU_ RSU 4;
+BA_ "ProtocolVersionMinor" BU_ RSU 0;
+BA_ "ProtocolVersionMajor" BU_ FSU 3;
+BA_ "ProtocolVersionMinor" BU_ FSU 0;
+BA_ "ProtocolVersionMajor" BU_ Telemetry 1;
+BA_ "ProtocolVersionMinor" BU_ Telemetry 0;
+BA_ "ProtocolVersionMajor" BU_ Charger 1;
+BA_ "ProtocolVersionMinor" BU_ Charger 0;
+
+BA_ "GenMsgCycleTime" BO_ 100 50;       // MPCU_VehicleState
+BA_ "GenMsgCycleTime" BO_ 900 100;      // MPCU_SystemStatues
+BA_ "GenMsgCycleTime" BO_ 2011 1000;    // MPCU_Values
+BA_ "GenMsgCycleTime" BO_ 48 20;        // MPCU_InverterForceRequest
+BA_ "GenMsgCycleTime" BO_ 150 20;       // APPS_NormalData
+BA_ "GenMsgCycleTime" BO_ 151 20;       // APPS_ErrorData
+BA_ "GenMsgCycleTime" BO_ 450 200;      // AMS_Stat
+BA_ "GenMsgCycleTime" BO_ 453 200;      // AMS_AvailableCurrent
+BA_ "GenMsgCycleTime" BO_ 500 200;      // AMS_Voltages1
+BA_ "GenMsgCycleTime" BO_ 501 200;      // AMS_Voltages2
+BA_ "GenMsgCycleTime" BO_ 502 200;      // AMS_Voltages3
+BA_ "GenMsgCycleTime" BO_ 503 200;      // AMS_Voltages4
+BA_ "GenMsgCycleTime" BO_ 504 200;      // AMS_Voltages5
+BA_ "GenMsgCycleTime" BO_ 510 200;      // AMS_Temperatures1
+BA_ "GenMsgCycleTime" BO_ 511 200;      // AMS_Temperatures2
+BA_ "GenMsgCycleTime" BO_ 512 200;      // AMS_Temperatures3
+BA_ "GenMsgCycleTime" BO_ 513 200;      // AMS_Temperatures4
+BA_ "GenMsgCycleTime" BO_ 514 200;      // AMS_Temperatures5
+BA_ "GenMsgCycleTime" BO_ 1400 20;      // RSU_Data
+BA_ "GenMsgCycleTime" BO_ 1408 20;      // RSU_Bps
+BA_ "GenMsgCycleTime" BO_ 1401 20;      // FSU_Data
+BA_ "GenMsgCycleTime" BO_ 1606 1000;    // Telemetry_ConnectionStat
+BA_ "GenMsgCycleTime" BO_ 2012 100;     // Dash_Status
+
+VAL_ 400 TsOnOff 0 "TS_OFF" 1 "TS_ON";
+VAL_ 1502 State 0 "OFF" 1 "ON";
+VAL_ 1505 State 0 "OFF" 1 "ON";
+VAL_ 1504 State 0 "OFF" 1 "ON";
+VAL_ 1519 State 0 "OFF" 1 "ON";
+VAL_ 100 VehicleState 0 "STARTUP" 1 "STANDBY" 2 "TS_ON" 3 "R2D";
+VAL_ 900 AppsState 0 "OFF" 1 "ON" 2 "ERROR" 3 "COMERROR";
+VAL_ 900 AmsState 0 "OFF" 1 "ON" 2 "ERROR" 3 "COMERROR";
+VAL_ 900 InverterState 0 "OFF" 1 "ON" 2 "ERROR" 3 "COMERROR";
+VAL_ 900 DashState 0 "OFF" 1 "ON" 2 "ERROR" 3 "COMERROR";
+VAL_ 900 RsuState 0 "OFF" 1 "ON" 2 "ERROR" 3 "COMERROR";
+VAL_ 900 FsuState 0 "OFF" 1 "ON" 2 "ERROR" 3 "COMERROR";
+VAL_ 900 TelemetryState 0 "OFF" 1 "ON" 2 "ERROR" 3 "COMERROR";
+VAL_ 450 TsState 0 "TS_ON" 1 "TS_PRECHARGE" 2 "TS_OFF" 3 "TS_ERROR";
+VAL_ 450 BenderState 0 "BENDER_IMD_OFF_OR_SHORT" 1 "BENDER_NORMAL" 2 "BENDER_UNDERVOLTAGE" 3 "BENDER_SPEED_START_MEASUREMENT" 4 "BENDER_DEVICE_ERROR" 5 "BENDER_CONNECTION_FAULT" 6 "BENDER_HARD_ERROR";
+VAL_ 450 BalancingState 0 "BALANCING_OFF" 1 "BALANCING_AUTO" 2 "BALANCING_ON";
+VAL_ 451 ErrorCode 0 "ERROR_OVERVOLTAGE" 1 "ERROR_UNDERVOLTAGE" 2 "ERROR_OVERTEMPERATURE" 3 "ERROR_TEMP_OPENWIRE" 4 "ERROR_CELL_OPENWIRE" 5 "ERROR_VOLTAGE_DIFFERENCE" 6 "ERROR_OVERTIME" 7 "ERROR_RELAY_STUCK" 8 "ERROR_ISA_OVERHEAT" 9 "ERROR_OVERCHARGE" 10 "ERROR_OVERDISCHARGE" 11 "ERROR_HARDWARE_FAILURE" 12 "ERROR_PRECHARGE_TIMEOUT" 13 "ERROR_ISA_TIMEOUT" 14 "ERROR_MPCU_TIMEOUT" 15 "ERROR_HV_ON" 16 "ERROR_LEAK" 17 "ERROR_AIR_OPENED" 18 "ERROR_BENDER";
+VAL_ 452 WarningCode 0 "WARNING_OVERVOLTAGE" 1 "WARNING_UNDERVOLTAGE" 2 "WARNING_OVERTEMPERATURE" 3 "WARNING_TEMP_OPENWIRE" 4 "WARNING_CELL_OPENWIRE" 5 "WARNING_VOLTAGE_DIFFERENCE" 6 "WARNING_STATE_CONTROL" 7 "WARNING_STARTUP" 8 "WARNING_SDC_OPENED" 9 "WARNING_RELAY_STUCK_DURING_ERROR" 10 "WARNING_OVERCHARGE" 11 "WARNING_OVERDISCHARGE" 12 "WARNING_HV_ON";
+VAL_ 403 Mode 0 "BALANCING_OFF" 1 "BALANCING_AUTO" 2 "BALANCING_ON";
+VAL_ 151 ErrorCode 0 "APPS1_ERROR" 1 "POLL_ERROR" 2 "APPS2_ERROR" 20 "KS_IN_OPEN_ERROR";
+VAL_ 2001 State 0 "STARTUP" 1 "STANDBY" 2 "TS_ON" 3 "R2D" 4 "ERROR";
+VAL_ 2004 Index 0 "POWER" 1 "MAX_RPM" 2 "COOLING_OVERRIDES" 3 "FAN1_OVERRIDE" 4 "FAN2_OVERRIDE" 5 "FAN3_OVERRIDE" 6 "MOTOR_PUMP_OVERRIDE" 7 "INVERTER_PUMP_OVERRIDE" 8 "SKIP_DASH_CHECK" 9 "SKIP_AMS_CHECK" 10 "SKIP_APPS_CHECK" 11 "SKIP_RSU_CHECK" 12 "SKIP_FSU_CHECK" 13 "SKIP_TELEMETRY_CHECK" 14 "SKIP_INVERTER_CHECK" 15 "SPEED_WHEEL_DIAMETER" 16 "BOOT_DELAY";
+VAL_ 2012 SwheelConnected 0 "DISCONNECTED" 1 "CONNECTED";
+VAL_ 1639 System 0 "APPS" 1 "AMS" 2 "RSU" 3 "FSU" 4 "TELEMETRY" 5 "INVERTER" 6 "DASH";
+VAL_ 1639 Power 0 "OFF" 1 "ON";
+VAL_ 905 ErrorCode 0 "APPS_COMERROR" 1 "AMS_COMERROR" 2 "INVERTER_COMERROR" 254 "CRITICAL";
+VAL_ 906 WarningCode 0 "DASH_COMERROR" 1 "RSU_COMERROR" 2 "FSU_COMERROR" 3 "TELEMETRY_COMERROR";
+VAL_ 1602 FsStatus 0 "OK" 1 "MOUNT_ERROR" 2 "FILE_OPEN_ERROR";
+VAL_ 1602 TotalSectors 0 "OK" 1 "MOUNT_ERROR" 2 "FILE_OPEN_ERROR";
+VAL_ 1602 FreeSectors 0 "OK" 1 "MOUNT_ERROR" 2 "FILE_OPEN_ERROR";
+VAL_ 1606 Connection 0 "DISCONNECTED" 1 "CONNECTED";

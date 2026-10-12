@@ -113,7 +113,7 @@ void MappingTable(SourceConfig& config, const Telemetry& telemetry, const UdpSou
 {
     const ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_BordersInnerH |
                                   ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_PadOuterX;
-    if (!ImGui::BeginTable("##mapping", 6, flags, size)) return;
+    if (!ImGui::BeginTable("##mapping", 7, flags, size)) return;
     const float em = ImGui::GetFontSize();
     ImGui::TableSetupScrollFreeze(0, 1);
     ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, em * 0.8f);
@@ -122,6 +122,7 @@ void MappingTable(SourceConfig& config, const Telemetry& telemetry, const UdpSou
     ImGui::TableSetupColumn("Scale", ImGuiTableColumnFlags_WidthFixed, em * 4.0f);
     ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, em * 4.0f);
     ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, em * 5.0f);
+    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight());
     ImGui::TableHeadersRow();
 
     const char* group = nullptr;
@@ -167,6 +168,7 @@ void MappingTable(SourceConfig& config, const Telemetry& telemetry, const UdpSou
         ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputTextWithHint("##signal", "message.signal", &b.signal);
         if (ImGui::IsItemActivated()) selected = i;
+        if (ImGui::IsItemDeactivatedAfterEdit()) AssignSignal(config, field, b.signal);   // keep signals unique
 
         ImGui::TableSetColumnIndex(3);
         ImGui::SetNextItemWidth(-FLT_MIN);
@@ -180,6 +182,12 @@ void MappingTable(SourceConfig& config, const Telemetry& telemetry, const UdpSou
         const std::string value = FormatField(field, telemetry.frame());
         if (st.state == UdpSource::BindState::Ok) ImGui::TextUnformatted(value.c_str());
         else ImGui::TextDisabled("%s", value.c_str());
+
+        ImGui::TableSetColumnIndex(6);
+        if (!b.signal.empty()) {
+            if (ImGui::Button("x", ImVec2(-FLT_MIN, 0))) ClearSignal(config, field);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Unbind");
+        }
 
         ImGui::PopID();
     }
@@ -231,13 +239,18 @@ void ReceivedSignals(SourceConfig& config, const UdpSource* udp, int& selected, 
         ImGui::TableSetColumnIndex(0);
         const auto bound = boundTo.find(r.path);
         if (bound != boundTo.end()) ImGui::PushStyleColor(ImGuiCol_Text, Col(kAccent));
+        // One click binds one value; the selection is then cleared so stray clicks do nothing.
         if (ImGui::Selectable(r.path.c_str(), false, ImGuiSelectableFlags_SpanAllColumns) && selected >= 0) {
-            config.bindings[selected].signal = r.path;
-            selected = std::min(selected + 1, kFieldCount - 1);   // move on to the next value
+            AssignSignal(config, static_cast<FrameField>(selected), r.path);
+            selected = -1;
         }
         if (bound != boundTo.end()) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered() && selected >= 0)
-            ImGui::SetTooltip("Click to bind to \"%s\"", GetFieldInfo(static_cast<FrameField>(selected)).label);
+        if (ImGui::IsItemHovered()) {
+            if (selected >= 0)
+                ImGui::SetTooltip("Click to bind to \"%s\"", GetFieldInfo(static_cast<FrameField>(selected)).label);
+            else
+                ImGui::SetTooltip("Select a dashboard value on the left first");
+        }
 
         const bool stale = r.age > timeout;
         ImGui::TableSetColumnIndex(1);
@@ -275,7 +288,7 @@ void DrawSourceWindow(bool* open, SourceConfig& config, Telemetry& telemetry, co
 {
     static bool wasOpen = false;
     static UdpConfig edit;          // connection settings being edited
-    static int selected = 0;        // mapping row that a click on a received signal binds to
+    static int selected = -1;       // mapping row that a click on a received signal binds to (-1 = none)
 
     if (*open && !wasOpen) {
         edit = config.udp;

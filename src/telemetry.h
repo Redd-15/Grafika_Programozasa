@@ -1,29 +1,58 @@
 // Telemetry data model, history buffers and data sources.
 #pragma once
 #include <array>
+#include <bitset>
 #include <cstddef>
 #include <memory>
 
-enum class CarState { Off, Startup, TSOn, R2D };
-enum class TSState { Idle, Precharge, Active, Error };
-enum class BenderState { Normal, Warning, Fault };       // insulation monitor (IMD)
-enum class CoolingMode { Auto, Off, Low, Mid, Max };
+// The enum values equal the raw CAN values in the car's DBC (ERMe01 v2.4), so a
+// received number maps straight onto them.
+
+// MPCU_VehicleState.VehicleState (Error = 4 is only listed for MPCU_StateRequestReq).
+enum class CarState { Startup = 0, Standby = 1, TSOn = 2, R2D = 3, Error = 4 };
+// AMS_Stat.TsState
+enum class TSState { On = 0, Precharge = 1, Off = 2, Error = 3 };
+// AMS_Stat.BenderState (insulation monitoring device)
+enum class BenderState {
+    OffOrShort = 0, Normal = 1, Undervoltage = 2, StartMeasurement = 3,
+    DeviceError = 4, ConnectionFault = 5, HardError = 6
+};
+// MPCU setting 14 (enum frequency_profile in the MPCU firmware; newer than DBC v2.4).
+enum class FrequencyProfile { Auto = 0, Low = 1, High = 2, Manual = 3 };   // Low = high torque
+constexpr int kCarStateCount = 5, kTsStateCount = 4, kBenderStateCount = 7, kFrequencyProfileCount = 4;
+
+// 0 = OK, 1 = warning, 2 = fault
+int Severity(BenderState s);
 
 const char* ToString(CarState s);
 const char* ToString(TSState s);
 const char* ToString(BenderState s);
-const char* ToString(CoolingMode m);
+const char* ToString(FrequencyProfile p);
+
+// Every value on the dashboard. Used for the UDP signal mapping and to track
+// which values are actually being received.
+enum class FrameField {
+    Apps, SteeringDeg, BpsBar,
+    MotorTemp, MaxCellTemp, InverterTemp,
+    TsState, Bender, PackV, UnbalancePct, SocPct, MotorCurrentA,
+    LvVoltage, CarState, SpeedKmh, MotorRpm,
+    PowerLimitKw, RpmLimit, MotorCooling, InverterCooling, WheelSizeMm, MaxRecuperationPct,
+    FrequencyProfile,
+    Count
+};
+constexpr int kFieldCount = static_cast<int>(FrameField::Count);
 
 // Values set on the car's dashboard (shown read-only).
 struct CarSettings {
     float powerLimitKw = 80.0f;
     int rpmLimit = 5500;
-    CoolingMode motorCooling = CoolingMode::Auto;
-    CoolingMode inverterCooling = CoolingMode::Auto;
+    int motorCooling = -1;          // pump override in %, -1 = AUTO (MPCU_Settings)
+    int inverterCooling = -1;
     int wheelSizeMm = 450;          // tyre outer diameter
-    int regenMaxA = 340;
+    int maxRecuperationPct = 100;   // MPCU setting 13, 0..100 %
+    FrequencyProfile frequencyProfile = FrequencyProfile::Auto;
 
-    static constexpr int kCount = 6;
+    static constexpr int kCount = 7;
 };
 
 struct TelemetryFrame {
@@ -38,7 +67,7 @@ struct TelemetryFrame {
     float inverterTemp = 0.0f;
 
     // Accumulator
-    TSState tsState = TSState::Idle;
+    TSState tsState = TSState::Off;
     BenderState bender = BenderState::Normal;
     float packV = 0.0f;
     float unbalancePct = 0.0f;
@@ -47,14 +76,19 @@ struct TelemetryFrame {
 
     // Vehicle
     float lvVoltage = 0.0f;         // low-voltage system, 10..15 V
-    CarState carState = CarState::Off;
+    CarState carState = CarState::Startup;
     float speedKmh = 0.0f;
     float motorRpm = 0.0f;
 
     CarSettings settings;
+
+    // Which values hold real data. Values the source does not provide (unbound,
+    // not received or timed out) are shown as "--" and never raise alarms.
+    std::bitset<kFieldCount> valid;
+    bool has(FrameField f) const { return valid[static_cast<std::size_t>(f)]; }
 };
 
-// Fixed-size ring buffer of samples, read oldest -> newest.
+// Fixed-size ring buffer of samples, read oldest -> newest. NaN marks "no data".
 template <std::size_t N>
 class History {
 public:

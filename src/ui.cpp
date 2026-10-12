@@ -16,6 +16,7 @@
 namespace {
 
 constexpr float kPi = 3.14159265358979f;
+constexpr const char* kNoData = "--";   // shown for values the source does not provide
 #define DEG "\xC2\xB0"
 
 using namespace theme;
@@ -162,22 +163,23 @@ void SegmentBar(ImDrawList* dl, const ImRect& r, float v01, ImU32 color, float s
 }
 
 void DriverInputBar(const Ctx& c, const ImRect& r, const char* label, float value, float max, const char* fmt,
-                    ImU32 color)
+                    ImU32 color, bool ok)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     Card(dl, r, kCard, c.s);
     float cx = (r.Min.x + r.Max.x) * 0.5f;
     TextCentered(dl, c.f->label, ImVec2(cx, r.Min.y + 14 * c.s), WithAlpha(kText, 0.85f), label);
     char buf[32];
-    std::snprintf(buf, sizeof buf, fmt, value);
-    TextCentered(dl, c.f->value, ImVec2(cx, r.Max.y - 17 * c.s), kText, buf);
+    if (ok) std::snprintf(buf, sizeof buf, fmt, value);
+    TextCentered(dl, c.f->value, ImVec2(cx, r.Max.y - 17 * c.s), ok ? kText : kTextFaint, ok ? buf : kNoData);
     float bw = std::min(r.GetWidth() * 0.42f, 34 * c.s);
     ImRect bar(ImVec2(cx - bw * 0.5f, r.Min.y + 28 * c.s), ImVec2(cx + bw * 0.5f, r.Max.y - 34 * c.s));
-    SegmentBar(dl, bar, value / max, color, c.s);
+    SegmentBar(dl, bar, ok ? value / max : 0.0f, color, c.s);
 }
 
-void SteeringGauge(const Ctx& c, const ImRect& r, float deg)
+void SteeringGauge(const Ctx& c, const ImRect& r, float deg, bool ok)
 {
+    if (!ok) deg = 0.0f;
     ImDrawList* dl = ImGui::GetWindowDrawList();
     Card(dl, r, kCard, c.s);
     const float s = c.s;
@@ -228,7 +230,7 @@ void SteeringGauge(const Ctx& c, const ImRect& r, float deg)
     char buf[32];
     std::snprintf(buf, sizeof buf, "%+.0f", deg);
     if (std::abs(deg) < 0.5f) std::snprintf(buf, sizeof buf, "0");
-    TextCentered(dl, c.f->value, ImVec2(ctr.x, r.Max.y - 17 * s), kText, buf);
+    TextCentered(dl, c.f->value, ImVec2(ctr.x, r.Max.y - 17 * s), ok ? kText : kTextFaint, ok ? buf : kNoData);
 }
 
 struct Thresholds { float warn, crit, max; };
@@ -236,19 +238,20 @@ struct Thresholds { float warn, crit, max; };
 int Level(float v, Thresholds t) { return v >= t.crit ? 2 : v >= t.warn ? 1 : 0; }
 
 // Horizontal temperature bar with warning / critical markers.
-void TemperatureBar(const Ctx& c, const char* label, float value, Thresholds th)
+void TemperatureBar(const Ctx& c, const char* label, float value, Thresholds th, bool ok)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float s = c.s;
     ImRect r = Reserve(36 * s);
-    const int level = Level(value, th);
+    if (!ok) value = 0.0f;
+    const int level = ok ? Level(value, th) : 0;
     Card(dl, r, AlarmColor(c, level), s);
 
     const float pad = 12 * s;
     Text(dl, c.f->label, ImVec2(r.Min.x + pad, r.Min.y + 4 * s), WithAlpha(kText, 0.9f), label);
     char buf[32];
     std::snprintf(buf, sizeof buf, "%.0f " DEG "C", value);
-    TextRight(dl, c.f->body, ImVec2(r.Max.x - pad, r.Min.y + 2 * s), kText, buf);
+    TextRight(dl, c.f->body, ImVec2(r.Max.x - pad, r.Min.y + 2 * s), ok ? kText : kTextFaint, ok ? buf : kNoData);
 
     ImRect bar(ImVec2(r.Min.x + pad, r.Max.y - 12 * s), ImVec2(r.Max.x - pad, r.Max.y - 7 * s));
     dl->AddRectFilled(bar.Min, bar.Max, IM_COL32(255, 255, 255, 20), 3 * s);
@@ -307,33 +310,42 @@ void Chart(const Ctx& c, float height, const char* title, const char* value, std
         if (n < 2) continue;
         const float dx = plot.GetWidth() / (Trace::capacity() - 1);
         const float x0 = plot.Max.x - dx * (n - 1);
-        pts.resize(static_cast<int>(n));
-        for (size_t i = 0; i < n; ++i) pts[static_cast<int>(i)] = ImVec2(x0 + dx * i, yOf(d[i]));
 
-        if (se.fill) {
-            // Gradient area under the curve.
-            const ImU32 topCol = WithAlpha(se.color, 0.32f), botCol = WithAlpha(se.color, 0.0f);
-            dl->PrimReserve(static_cast<int>(n - 1) * 6, static_cast<int>(n - 1) * 4);
-            for (size_t i = 0; i + 1 < n; ++i) {
-                ImVec2 a = pts[static_cast<int>(i)], b = pts[static_cast<int>(i + 1)];
-                auto idx = static_cast<ImDrawIdx>(dl->_VtxCurrentIdx);
-                dl->PrimWriteVtx(a, uv, topCol);
-                dl->PrimWriteVtx(b, uv, topCol);
-                dl->PrimWriteVtx(ImVec2(b.x, plot.Max.y), uv, botCol);
-                dl->PrimWriteVtx(ImVec2(a.x, plot.Max.y), uv, botCol);
-                dl->PrimWriteIdx(idx);
-                dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 1));
-                dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 2));
-                dl->PrimWriteIdx(idx);
-                dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 2));
-                dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 3));
+        // Draw each run of valid samples separately; NaN ("no data") leaves a gap.
+        size_t i = 0;
+        while (i < n) {
+            while (i < n && std::isnan(d[i])) ++i;
+            pts.resize(0);
+            for (; i < n && !std::isnan(d[i]); ++i) pts.push_back(ImVec2(x0 + dx * i, yOf(d[i])));
+            if (pts.Size < 2) continue;
+
+            if (se.fill) {
+                // Gradient area under the curve.
+                const ImU32 topCol = WithAlpha(se.color, 0.32f), botCol = WithAlpha(se.color, 0.0f);
+                dl->PrimReserve((pts.Size - 1) * 6, (pts.Size - 1) * 4);
+                for (int k = 0; k + 1 < pts.Size; ++k) {
+                    ImVec2 a = pts[k], b = pts[k + 1];
+                    auto idx = static_cast<ImDrawIdx>(dl->_VtxCurrentIdx);
+                    dl->PrimWriteVtx(a, uv, topCol);
+                    dl->PrimWriteVtx(b, uv, topCol);
+                    dl->PrimWriteVtx(ImVec2(b.x, plot.Max.y), uv, botCol);
+                    dl->PrimWriteVtx(ImVec2(a.x, plot.Max.y), uv, botCol);
+                    dl->PrimWriteIdx(idx);
+                    dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 1));
+                    dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 2));
+                    dl->PrimWriteIdx(idx);
+                    dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 2));
+                    dl->PrimWriteIdx(static_cast<ImDrawIdx>(idx + 3));
+                }
             }
+            dl->AddPolyline(pts.Data, pts.Size, WithAlpha(se.color, 0.18f), 0, 6 * s);   // glow
+            dl->AddPolyline(pts.Data, pts.Size, se.color, 0, 2 * s);
         }
-        dl->AddPolyline(pts.Data, pts.Size, WithAlpha(se.color, 0.18f), 0, 6 * s);   // glow
-        dl->AddPolyline(pts.Data, pts.Size, se.color, 0, 2 * s);
-        ImVec2 last = pts[pts.Size - 1];
-        dl->AddCircleFilled(last, 5 * s, WithAlpha(se.color, 0.3f));
-        dl->AddCircleFilled(last, 3 * s, se.color);
+        if (!std::isnan(d[n - 1])) {   // dot on the newest sample
+            ImVec2 last(plot.Max.x, yOf(d[n - 1]));
+            dl->AddCircleFilled(last, 5 * s, WithAlpha(se.color, 0.3f));
+            dl->AddCircleFilled(last, 3 * s, se.color);
+        }
     }
     dl->PopClipRect();
 }
@@ -344,24 +356,28 @@ void Chart(const Ctx& c, float height, const char* title, const char* value, std
 ImU32 CarStateColor(CarState st)
 {
     switch (st) {
-    case CarState::Off:     return IM_COL32(120, 132, 150, 255);
     case CarState::Startup: return kAmber;
+    case CarState::Standby: return IM_COL32(120, 160, 210, 255);
     case CarState::TSOn:    return kOrange;
     case CarState::R2D:     return kGreen;
+    case CarState::Error:   return kRed;
     }
     return kText;
 }
 
-void CarStateStepper(const Ctx& c, CarState state)
+// STARTUP -> STANDBY -> TS ON -> R2D. With ok == false nothing is highlighted;
+// ERROR outlines every step in pulsing red.
+void CarStateStepper(const Ctx& c, CarState state, bool ok)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float s = c.s;
     ImRect r = Reserve(40 * s);
-    const CarState states[4] = {CarState::Off, CarState::Startup, CarState::TSOn, CarState::R2D};
-    const float gap = 14 * s;
+    const CarState states[4] = {CarState::Startup, CarState::Standby, CarState::TSOn, CarState::R2D};
+    const float gap = 12 * s;
     ImRect cols[4];
-    Columns(r, gap, {1.0f, 1.25f, 1.0f, 1.0f}, cols);
-    const int current = static_cast<int>(state);
+    Columns(r, gap, {1.2f, 1.2f, 1.0f, 0.8f}, cols);
+    const bool error = ok && state == CarState::Error;
+    const int current = ok && !error ? static_cast<int>(state) : -1;
 
     for (int i = 0; i < 4; ++i) {
         const ImRect& cr = cols[i];
@@ -381,28 +397,30 @@ void CarStateStepper(const Ctx& c, CarState state)
             TextCentered(dl, c.f->value, cr.GetCenter(), IM_COL32(8, 14, 22, 255), ToString(states[i]));
         } else {
             dl->AddRectFilled(cr.Min, cr.Max, kCard, 9 * s);
-            dl->AddRect(cr.Min, cr.Max, i < current ? WithAlpha(col, 0.6f) : WithAlpha(kBorder, 0.7f), 9 * s, 0,
-                        1.2f * s);
+            const ImU32 border = error         ? WithAlpha(kRed, 0.4f + 0.6f * c.pulse())
+                                 : i < current ? WithAlpha(col, 0.6f)
+                                               : WithAlpha(kBorder, 0.7f);
+            dl->AddRect(cr.Min, cr.Max, border, 9 * s, 0, (error ? 2.0f : 1.2f) * s);
             TextCentered(dl, c.f->label, cr.GetCenter(), i < current ? WithAlpha(col, 0.9f) : kTextFaint,
                          ToString(states[i]));
         }
     }
 }
 
-void LowVoltageBar(const Ctx& c, float volts)
+void LowVoltageBar(const Ctx& c, float volts, bool ok)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float s = c.s;
     ImRect r = Reserve(54 * s);
     const float vmin = limits::lv_voltage_min, vmax = limits::lv_voltage_max;
-    const int level = volts < limits::lv_voltage_crit ? 2 : volts < limits::lv_voltage_warn ? 1 : 0;
+    const int level = !ok ? 0 : volts < limits::lv_voltage_crit ? 2 : volts < limits::lv_voltage_warn ? 1 : 0;
     Card(dl, r, AlarmColor(c, level), s);
 
     const float pad = 12 * s;
     Text(dl, c.f->label, ImVec2(r.Min.x + pad, r.Min.y + 8 * s), WithAlpha(kText, 0.85f), "LV BATTERY");
     char buf[32];
     std::snprintf(buf, sizeof buf, "%.2f V", volts);
-    TextRight(dl, c.f->value, ImVec2(r.Max.x - pad, r.Min.y + 4 * s), kText, buf);
+    TextRight(dl, c.f->value, ImVec2(r.Max.x - pad, r.Min.y + 4 * s), ok ? kText : kTextFaint, ok ? buf : kNoData);
 
     ImRect bar(ImVec2(r.Min.x + pad, r.Max.y - 18 * s), ImVec2(r.Max.x - pad, r.Max.y - 12 * s));
     auto xOf = [&](float v) { return bar.Min.x + (std::clamp(v, vmin, vmax) - vmin) / (vmax - vmin) * bar.GetWidth(); };
@@ -421,6 +439,7 @@ void LowVoltageBar(const Ctx& c, float volts)
         float tx = std::clamp(x - sz.x * 0.5f, bar.Min.x, bar.Max.x - sz.x);
         dl->AddText(c.f->label, c.f->label->FontSize * 0.8f, ImVec2(tx, bar.Max.y + 1 * s), kTextFaint, buf);
     }
+    if (!ok) return;
     // Needle
     float x = xOf(volts);
     dl->AddRectFilled(ImVec2(x - 1.5f * s, bar.Min.y - 5 * s), ImVec2(x + 1.5f * s, bar.Max.y + 3 * s), kText, 1 * s);
@@ -443,8 +462,9 @@ void MeterTile(const Ctx& c, const ImRect& r, const char* label, const char* val
 
 // Motor current bar, symmetrical around 0 A: blue fill to the right while driving,
 // green fill to the left for regen (negative current).
-void MotorCurrentBar(const Ctx& c, float amps)
+void MotorCurrentBar(const Ctx& c, float amps, bool ok)
 {
+    if (!ok) amps = 0.0f;
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float s = c.s;
     ImRect r = Reserve(44 * s);
@@ -454,7 +474,7 @@ void MotorCurrentBar(const Ctx& c, float amps)
     Text(dl, c.f->label, ImVec2(r.Min.x + pad, r.Min.y + 5 * s), WithAlpha(kText, 0.85f), "MOTOR CURRENT");
     char buf[32];
     std::snprintf(buf, sizeof buf, "%.0f A", amps);
-    TextRight(dl, c.f->body, ImVec2(r.Max.x - pad, r.Min.y + 3 * s), kText, buf);
+    TextRight(dl, c.f->body, ImVec2(r.Max.x - pad, r.Min.y + 3 * s), ok ? kText : kTextFaint, ok ? buf : kNoData);
 
     ImRect bar(ImVec2(r.Min.x + pad, r.Max.y - 14 * s), ImVec2(r.Max.x - pad, r.Max.y - 8 * s));
     dl->AddRectFilled(bar.Min, bar.Max, IM_COL32(255, 255, 255, 20), 3 * s);
@@ -477,18 +497,18 @@ void LeftPanel(const Ctx& c, const TelemetryFrame& f, const TelemetryHistory& h)
     char buf[64];
 
     SectionHeader(c, "CAR STATE");
-    CarStateStepper(c, f.carState);
+    CarStateStepper(c, f.carState, f.has(FrameField::CarState));
     ImGui::Dummy(ImVec2(0, 2 * s));
-    LowVoltageBar(c, f.lvVoltage);
+    LowVoltageBar(c, f.lvVoltage, f.has(FrameField::LvVoltage));
 
     ImGui::Dummy(ImVec2(0, 4 * s));
     SectionHeader(c, "DRIVER INPUTS");
     {
         ImRect row = Reserve(138 * s), col[3];
         Columns(row, gap, {1.0f, 1.0f, 1.55f}, col);
-        DriverInputBar(c, col[0], "APPS %", f.appsPct, 100.0f, "%.0f", kGreen);
-        DriverInputBar(c, col[1], "BPS bar", f.bpsBar, 100.0f, "%.0f", kRed);
-        SteeringGauge(c, col[2], f.steeringDeg);
+        DriverInputBar(c, col[0], "APPS %", f.appsPct, 100.0f, "%.0f", kGreen, f.has(FrameField::Apps));
+        DriverInputBar(c, col[1], "BPS bar", f.bpsBar, 100.0f, "%.0f", kRed, f.has(FrameField::BpsBar));
+        SteeringGauge(c, col[2], f.steeringDeg, f.has(FrameField::SteeringDeg));
     }
 
     ImGui::Dummy(ImVec2(0, 4 * s));
@@ -496,11 +516,11 @@ void LeftPanel(const Ctx& c, const TelemetryFrame& f, const TelemetryHistory& h)
     const Thresholds motorTh{limits::mot_temp_warn, limits::mot_temp_crit, 130};
     const Thresholds cellTh{limits::bat_temp_warn, limits::bat_temp_crit, 70};
     const Thresholds invTh{limits::inv_temp_warn, limits::inv_temp_crit, 100};
-    TemperatureBar(c, "MOTOR", f.motorTemp, motorTh);
+    TemperatureBar(c, "MOTOR", f.motorTemp, motorTh, f.has(FrameField::MotorTemp));
     ImGui::Dummy(ImVec2(0, 1 * s));
-    TemperatureBar(c, "MAX CELL", f.maxCellTemp, cellTh);
+    TemperatureBar(c, "MAX CELL", f.maxCellTemp, cellTh, f.has(FrameField::MaxCellTemp));
     ImGui::Dummy(ImVec2(0, 1 * s));
-    TemperatureBar(c, "INVERTER", f.inverterTemp, invTh);
+    TemperatureBar(c, "INVERTER", f.inverterTemp, invTh, f.has(FrameField::InverterTemp));
     ImGui::Dummy(ImVec2(0, 1 * s));
     // The trend chart absorbs spare height; the accumulator block below needs ~220 px.
     const float trendH = std::max(56 * s, ImGui::GetContentRegionAvail().y - 222 * s);
@@ -530,51 +550,74 @@ void LeftPanel(const Ctx& c, const TelemetryFrame& f, const TelemetryHistory& h)
         Columns(row, gap, {1.0f, 1.0f}, col);
         ImU32 tsBg = kCard;
         switch (f.tsState) {
-        case TSState::Idle:      tsBg = kCard; break;
+        case TSState::Off:       tsBg = kCard; break;
         case TSState::Precharge: tsBg = Lerp(kAmber, kCard, c.pulse() * 0.6f); break;
-        case TSState::Active:    tsBg = Lerp(kOrange, IM_COL32(170, 70, 20, 255), 0.35f); break;
+        case TSState::On:        tsBg = Lerp(kOrange, IM_COL32(170, 70, 20, 255), 0.35f); break;
         case TSState::Error:     tsBg = AlarmColor(c, 2); break;
         }
-        ValueTile(c, col[0], "TS STATE", ToString(f.tsState), tsBg);
-        int benderLevel = f.bender == BenderState::Fault ? 2 : f.bender == BenderState::Warning ? 1 : 0;
-        ValueTile(c, col[1], "BENDER", ToString(f.bender), AlarmColor(c, benderLevel));
+        const bool tsOk = f.has(FrameField::TsState), benderOk = f.has(FrameField::Bender);
+        ValueTile(c, col[0], "TS STATE", tsOk ? ToString(f.tsState) : kNoData, tsOk ? tsBg : kCard);
+        const int benderLevel = Severity(f.bender);
+        ValueTile(c, col[1], "BENDER", benderOk ? ToString(f.bender) : kNoData,
+                  AlarmColor(c, benderOk ? benderLevel : 0));
     }
     ImGui::Dummy(ImVec2(0, 2 * s));
     {
         ImRect row = Reserve(64 * s), col[3];
         Columns(row, gap, {1.0f, 1.0f, 1.2f}, col);
+        const bool packOk = f.has(FrameField::PackV), socOk = f.has(FrameField::SocPct),
+                   ubOk = f.has(FrameField::UnbalancePct);
         std::snprintf(buf, sizeof buf, "%.0f", f.packV);
-        MeterTile(c, col[0], "PACK V", buf, (f.packV - 400.0f) / 200.0f, kAccent);
+        MeterTile(c, col[0], "PACK V", packOk ? buf : kNoData, packOk ? (f.packV - 400.0f) / 200.0f : 0.0f, kAccent);
         std::snprintf(buf, sizeof buf, "%.0f", f.socPct);
-        const int socLevel = f.socPct < limits::hv_soc_crit ? 2 : f.socPct < limits::hv_soc_warn ? 1 : 0;
-        MeterTile(c, col[1], "SOC %", buf, f.socPct / 100.0f, socLevel ? kText : kGreen, AlarmColor(c, socLevel));
+        const int socLevel = !socOk ? 0 : f.socPct < limits::hv_soc_crit ? 2 : f.socPct < limits::hv_soc_warn ? 1 : 0;
+        MeterTile(c, col[1], "SOC %", socOk ? buf : kNoData, socOk ? f.socPct / 100.0f : 0.0f,
+                  socLevel ? kText : kGreen, AlarmColor(c, socLevel));
         std::snprintf(buf, sizeof buf, "%.1f", f.unbalancePct);
-        const int ubLevel = f.unbalancePct > 5.0f ? 2 : f.unbalancePct > 3.0f ? 1 : 0;
-        MeterTile(c, col[2], "UNBALANCE %", buf, f.unbalancePct / 10.0f, ubLevel ? kText : kGreen,
-                  AlarmColor(c, ubLevel));
+        const int ubLevel = !ubOk ? 0 : f.unbalancePct > 5.0f ? 2 : f.unbalancePct > 3.0f ? 1 : 0;
+        MeterTile(c, col[2], "UNBALANCE %", ubOk ? buf : kNoData, ubOk ? f.unbalancePct / 10.0f : 0.0f,
+                  ubLevel ? kText : kGreen, AlarmColor(c, ubLevel));
     }
     ImGui::Dummy(ImVec2(0, 2 * s));
-    MotorCurrentBar(c, f.motorCurrentA);
+    MotorCurrentBar(c, f.motorCurrentA, f.has(FrameField::MotorCurrentA));
     (void)h;
 }
 
-void SettingsGroup(const Ctx& c, const CarSettings& st)
+void SettingsGroup(const Ctx& c, const TelemetryFrame& f)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const float s = c.s;
+    const CarSettings& st = f.settings;
+    const FrameField fields[CarSettings::kCount] = {FrameField::PowerLimitKw, FrameField::RpmLimit,
+                                                    FrameField::MotorCooling, FrameField::InverterCooling,
+                                                    FrameField::WheelSizeMm,  FrameField::MaxRecuperationPct,
+                                                    FrameField::FrequencyProfile};
     char values[CarSettings::kCount][32];
     std::snprintf(values[0], 32, "%.0f kW", st.powerLimitKw);
     std::snprintf(values[1], 32, "%d rpm", st.rpmLimit);
-    std::snprintf(values[2], 32, "%s", ToString(st.motorCooling));
-    std::snprintf(values[3], 32, "%s", ToString(st.inverterCooling));
+    // Cooling = pump override from MPCU_Settings: -1 means automatic control.
+    auto cooling = [](char* out, int pct) {
+        if (pct < 0) std::snprintf(out, 32, "AUTO");
+        else std::snprintf(out, 32, "%d %%", pct);
+    };
+    cooling(values[2], st.motorCooling);
+    cooling(values[3], st.inverterCooling);
     std::snprintf(values[4], 32, "%d mm", st.wheelSizeMm);
-    std::snprintf(values[5], 32, "%d A", st.regenMaxA);
+    std::snprintf(values[5], 32, "%d %%", st.maxRecuperationPct);
+    // LOW switching frequency gives more torque, HIGH less (MPCU firmware comment).
+    switch (st.frequencyProfile) {
+    case FrequencyProfile::Low:  std::snprintf(values[6], 32, "LOW (HIGH TQ)"); break;
+    case FrequencyProfile::High: std::snprintf(values[6], 32, "HIGH (LOW TQ)"); break;
+    default:                     std::snprintf(values[6], 32, "%s", ToString(st.frequencyProfile)); break;
+    }
+    for (int i = 0; i < CarSettings::kCount; ++i)
+        if (!f.has(fields[i])) std::snprintf(values[i], 32, "%s", kNoData);
     const char* labels[CarSettings::kCount] = {"POWER LIMIT", "RPM LIMIT", "MOTOR COOLING", "INVERTER COOLING",
-                                               "WHEEL SIZE", "REGEN MAX"};
+                                               "WHEEL SIZE", "MAX RECUPERATION", "FREQUENCY PROFILE"};
 
     // Flash a row briefly when its value changes.
     static std::string previous[CarSettings::kCount];
-    static double changedAt[CarSettings::kCount] = {-10, -10, -10, -10, -10, -10};
+    static double changedAt[CarSettings::kCount] = {-10, -10, -10, -10, -10, -10, -10};
 
     for (int i = 0; i < CarSettings::kCount; ++i) {
         if (!previous[i].empty() && previous[i] != values[i]) changedAt[i] = c.time;
@@ -586,8 +629,8 @@ void SettingsGroup(const Ctx& c, const CarSettings& st)
         float midY = (r.Min.y + r.Max.y) * 0.5f;
         Text(dl, c.f->body, ImVec2(r.Min.x + 16 * s, std::floor(midY - c.f->body->FontSize * 0.5f)),
              WithAlpha(kText, 0.8f), labels[i]);
-        TextRight(dl, c.f->value, ImVec2(r.Max.x - 14 * s, std::floor(midY - c.f->value->FontSize * 0.5f)), kText,
-                  values[i]);
+        TextRight(dl, c.f->value, ImVec2(r.Max.x - 14 * s, std::floor(midY - c.f->value->FontSize * 0.5f)),
+                  f.has(fields[i]) ? kText : kTextFaint, values[i]);
         ImGui::Dummy(ImVec2(0, 1 * s));
     }
 }
@@ -597,20 +640,27 @@ void RightPanel(const Ctx& c, const TelemetryFrame& f, const TelemetryHistory& h
     const float s = c.s;
     char buf[64];
     SectionHeader(c, "SETTINGS");
-    SettingsGroup(c, f.settings);
+    SettingsGroup(c, f);
 
     ImGui::Dummy(ImVec2(0, 4 * s));
     SectionHeader(c, "VEHICLE", "last 30 s");
     std::snprintf(buf, sizeof buf, "%.0f km/h", f.speedKmh);
+    if (!f.has(FrameField::SpeedKmh)) std::snprintf(buf, sizeof buf, "%s", kNoData);
     Chart(c, 104 * s, "SPEED", buf, {{&h.speed, kAccent, true}}, 0, 130);
     ImGui::Dummy(ImVec2(0, 2 * s));
     std::snprintf(buf, sizeof buf, "%.0f rpm", f.motorRpm);
+    if (!f.has(FrameField::MotorRpm)) std::snprintf(buf, sizeof buf, "%s", kNoData);
     Chart(c, 104 * s, "MOTOR RPM", buf, {{&h.rpm, kViolet, true}}, 0, 6500,
-          static_cast<float>(f.settings.rpmLimit), "- - limit");
+          f.has(FrameField::RpmLimit) ? static_cast<float>(f.settings.rpmLimit) : NAN,
+          f.has(FrameField::RpmLimit) ? "- - limit" : nullptr);
 
     ImGui::Dummy(ImVec2(0, 4 * s));
     SectionHeader(c, "PEDALS", "last 30 s");
-    std::snprintf(buf, sizeof buf, "%.0f%%  /  %.0f bar", f.appsPct, f.bpsBar);
+    char apps[16], bps[16];
+    std::snprintf(apps, sizeof apps, "%.0f%%", f.appsPct);
+    std::snprintf(bps, sizeof bps, "%.0f bar", f.bpsBar);
+    std::snprintf(buf, sizeof buf, "%s  /  %s", f.has(FrameField::Apps) ? apps : kNoData,
+                  f.has(FrameField::BpsBar) ? bps : kNoData);
     Chart(c, std::max(104 * s, ImGui::GetContentRegionAvail().y - 2 * s), "APPS / BPS", buf,
           {{&h.apps, kGreen, true}, {&h.bps, kRed, true}}, 0, 100);
 }
@@ -709,26 +759,31 @@ void SceneOverlay(const Ctx& c, const TelemetryFrame& f, const SceneRect& r, boo
 
     // Speed read-out and RPM bar at the bottom of the 3D view.
     std::snprintf(buf, sizeof buf, "%.0f", f.speedKmh);
+    if (!f.has(FrameField::SpeedKmh)) std::snprintf(buf, sizeof buf, "%s", kNoData);
     const float speedY = r.max.y - 118 * s;
     ImVec2 sz = TextSize(c.f->huge, buf);
     dl->AddText(c.f->huge, c.f->huge->FontSize, ImVec2(cx - sz.x * 0.5f + 2 * s, speedY + 3 * s),
                 IM_COL32(0, 0, 0, 120), buf);
-    Text(dl, c.f->huge, ImVec2(cx - sz.x * 0.5f, speedY), kText, buf);
+    Text(dl, c.f->huge, ImVec2(cx - sz.x * 0.5f, speedY), f.has(FrameField::SpeedKmh) ? kText : kTextFaint, buf);
     TextCentered(dl, c.f->label, ImVec2(cx, speedY + sz.y + 4 * s), kTextDim, "KM/H");
 
     const float bw = std::min(360 * s, (r.max.x - r.min.x) * 0.7f);
     ImRect bar(ImVec2(cx - bw * 0.5f, r.max.y - 22 * s), ImVec2(cx + bw * 0.5f, r.max.y - 16 * s));
     const float limit = static_cast<float>(f.settings.rpmLimit);
-    const float t = std::clamp(f.motorRpm / 6500.0f, 0.0f, 1.0f);
+    const bool rpmOk = f.has(FrameField::MotorRpm);
+    const float t = rpmOk ? std::clamp(f.motorRpm / 6500.0f, 0.0f, 1.0f) : 0.0f;
     const float lt = std::clamp(limit / 6500.0f, 0.0f, 1.0f);
     dl->AddRectFilled(bar.Min, bar.Max, IM_COL32(255, 255, 255, 20), 3 * s);
     if (t > 0.0f) {
         ImU32 col = f.motorRpm >= limit * 0.97f ? kRed : f.motorRpm > limit * 0.85f ? kAmber : kAccent;
         dl->AddRectFilled(bar.Min, ImVec2(bar.Min.x + bw * t, bar.Max.y), col, 3 * s);
     }
-    float lx = bar.Min.x + bw * lt;
-    dl->AddLine(ImVec2(lx, bar.Min.y - 4 * s), ImVec2(lx, bar.Max.y + 4 * s), kRed, 2 * s);
+    if (f.has(FrameField::RpmLimit)) {   // limit marker only when the car reports it
+        float lx = bar.Min.x + bw * lt;
+        dl->AddLine(ImVec2(lx, bar.Min.y - 4 * s), ImVec2(lx, bar.Max.y + 4 * s), kRed, 2 * s);
+    }
     std::snprintf(buf, sizeof buf, "%.0f RPM", f.motorRpm);
+    if (!rpmOk) std::snprintf(buf, sizeof buf, "%s RPM", kNoData);
     Text(dl, c.f->label, ImVec2(bar.Min.x, bar.Min.y - c.f->label->FontSize - 4 * s), kTextDim, buf);
 
     // Hints / badges.
@@ -737,10 +792,11 @@ void SceneOverlay(const Ctx& c, const TelemetryFrame& f, const SceneRect& r, boo
     if (placeholder) Text(dl, c.f->label, ImVec2(r.min.x + 8 * s, r.min.y + 12 * s), kTextFaint, "PLACEHOLDER MODEL");
 
     // Big R2D / state banner when not ready to drive.
-    if (f.carState != CarState::R2D) {
-        const char* msg = f.carState == CarState::Off       ? "VEHICLE OFF"
-                          : f.carState == CarState::Startup ? "STARTING UP"
-                                                            : "TRACTIVE SYSTEM ON";
+    if (f.has(FrameField::CarState) && f.carState != CarState::R2D) {
+        const char* msg = f.carState == CarState::Startup   ? "STARTING UP"
+                          : f.carState == CarState::Standby ? "STANDBY"
+                          : f.carState == CarState::TSOn    ? "TRACTIVE SYSTEM ON"
+                                                            : "VEHICLE ERROR";
         ImU32 col = CarStateColor(f.carState);
         ImVec2 ts = TextSize(c.f->value, msg);
         ImRect b(ImVec2(cx - ts.x * 0.5f - 18 * s, r.min.y + 40 * s),

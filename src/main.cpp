@@ -102,7 +102,14 @@ int main(int argc, char** argv)
 
     // Data-source choice and CAN signal mapping, edited from the top-bar source pill.
     SourceConfig sources;
-    sources.load((ExeDir(argv[0]) / "data_source.json").string());
+    {
+        // First start: begin from the car's default mapping (built from the DBC), but keep
+        // saving to data_source.json so user edits are never overwritten by the default.
+        const std::filesystem::path dir = ExeDir(argv[0]);
+        const std::string userFile = (dir / "data_source.json").string();
+        if (!sources.load(userFile) && sources.load((dir / "assets" / "data_source.default.json").string()))
+            sources.path = userFile;
+    }
     Telemetry telemetry(CreateSource(sources));
 
     double last = glfwGetTime();
