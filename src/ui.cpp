@@ -1,7 +1,10 @@
 #include "ui.h"
 
 #include "display_limits.h"
+#include "data_source.h"
+#include "source_panel.h"
 #include "telemetry.h"
+#include "ui_theme.h"
 
 #include <imgui_internal.h>   // ImRect
 
@@ -15,22 +18,7 @@ namespace {
 constexpr float kPi = 3.14159265358979f;
 #define DEG "\xC2\xB0"
 
-// ---------------------------------------------------------------------------
-// Palette
-// ---------------------------------------------------------------------------
-const ImU32 kPanel    = IM_COL32(7, 11, 19, 225);
-const ImU32 kCard     = IM_COL32(13, 37, 63, 255);
-const ImU32 kCardHi   = IM_COL32(20, 54, 90, 255);
-const ImU32 kBorder   = IM_COL32(38, 74, 115, 255);
-const ImU32 kText     = IM_COL32(236, 242, 250, 255);
-const ImU32 kTextDim  = IM_COL32(138, 162, 188, 255);
-const ImU32 kTextFaint= IM_COL32(90, 110, 135, 255);
-const ImU32 kAccent   = IM_COL32(63, 169, 245, 255);
-const ImU32 kGreen    = IM_COL32(46, 204, 113, 255);
-const ImU32 kAmber    = IM_COL32(245, 166, 35, 255);
-const ImU32 kOrange   = IM_COL32(255, 118, 40, 255);
-const ImU32 kRed      = IM_COL32(240, 71, 71, 255);
-const ImU32 kViolet   = IM_COL32(155, 110, 255, 255);
+using namespace theme;
 
 ImU32 WithAlpha(ImU32 c, float a)
 {
@@ -593,30 +581,15 @@ void SettingsGroup(const Ctx& c, const CarSettings& st)
         previous[i] = values[i];
 
         ImRect r = Reserve(44 * s);
-        const bool sel = i == st.selected;
         float flash = std::clamp(1.0f - static_cast<float>(c.time - changedAt[i]) / 1.5f, 0.0f, 1.0f);
-        ImU32 bg = Lerp(sel ? kCardHi : kCard, WithAlpha(kAccent, 1.0f), flash * 0.45f);
-        if (sel) {
-            for (int g = 2; g >= 1; --g) {
-                float e = g * 2.5f * s;
-                dl->AddRectFilled(ImVec2(r.Min.x - e, r.Min.y - e), ImVec2(r.Max.x + e, r.Max.y + e),
-                                  WithAlpha(kAccent, 0.07f), 10 * s + e);
-            }
-        }
-        Card(dl, r, bg, s, sel ? kAccent : 0);
-        if (sel)
-            dl->AddRectFilled(ImVec2(r.Min.x + 5 * s, r.Min.y + 10 * s), ImVec2(r.Min.x + 8 * s, r.Max.y - 10 * s),
-                              kAccent, 2 * s);
+        Card(dl, r, Lerp(kCard, kAccent, flash * 0.45f), s);
         float midY = (r.Min.y + r.Max.y) * 0.5f;
         Text(dl, c.f->body, ImVec2(r.Min.x + 16 * s, std::floor(midY - c.f->body->FontSize * 0.5f)),
-             sel ? kText : WithAlpha(kText, 0.8f), labels[i]);
+             WithAlpha(kText, 0.8f), labels[i]);
         TextRight(dl, c.f->value, ImVec2(r.Max.x - 14 * s, std::floor(midY - c.f->value->FontSize * 0.5f)), kText,
                   values[i]);
         ImGui::Dummy(ImVec2(0, 1 * s));
     }
-    ImRect foot = Reserve(20 * s);
-    TextRight(dl, c.f->label, ImVec2(foot.Max.x - 4 * s, foot.Min.y + 2 * s), kTextDim,
-              "L knob: select     R knob: change");
 }
 
 void RightPanel(const Ctx& c, const TelemetryFrame& f, const TelemetryHistory& h)
@@ -665,7 +638,8 @@ void EndSidePanel()
     ImGui::End();
 }
 
-void TopBar(const Ctx& c, const Telemetry& t, float width, float height)
+// Returns true when the data-source pill was clicked.
+bool TopBar(const Ctx& c, const Telemetry& t, float width, float height, bool interactive)
 {
     const float s = c.s;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
@@ -699,17 +673,31 @@ void TopBar(const Ctx& c, const Telemetry& t, float width, float height)
     TextRight(dl, c.f->label, ImVec2(x, midY - c.f->label->FontSize * 0.5f), kTextFaint, "SESSION");
     x -= TextSize(c.f->label, "SESSION").x + 24 * s;
 
+    // Data-source pill; clicking it opens the data-source window.
     const bool ok = t.source().connected();
     const char* src = t.source().name();
     ImVec2 sz = TextSize(c.f->label, src);
-    ImRect pill(ImVec2(x - sz.x - 34 * s, midY - 13 * s), ImVec2(x, midY + 13 * s));
+    ImRect pill(ImVec2(x - sz.x - 50 * s, midY - 13 * s), ImVec2(x, midY + 13 * s));
+    // clip=false: outside any window the default clip rect is ImGui's hidden fallback window.
+    const bool hovered = interactive && ImGui::IsMouseHoveringRect(pill.Min, pill.Max, false) &&
+                         !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
+    if (hovered) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     ImU32 col = ok ? kGreen : kRed;
-    dl->AddRectFilled(pill.Min, pill.Max, WithAlpha(col, 0.12f), 13 * s);
+    dl->AddRectFilled(pill.Min, pill.Max, WithAlpha(col, hovered ? 0.26f : 0.12f), 13 * s);
     dl->AddRect(pill.Min, pill.Max, WithAlpha(col, 0.5f), 13 * s, 0, 1.2f * s);
     ImVec2 dot(pill.Min.x + 14 * s, midY);
     dl->AddCircleFilled(dot, (4.0f + 3.0f * c.pulse()) * s, WithAlpha(col, 0.25f));
     dl->AddCircleFilled(dot, 4 * s, col);
     Text(dl, c.f->label, ImVec2(pill.Min.x + 26 * s, midY - sz.y * 0.5f), kText, src);
+    // Chevron hinting that the pill opens a menu.
+    const float cx = pill.Max.x - 15 * s;
+    dl->AddTriangleFilled(ImVec2(cx - 4 * s, midY - 2 * s), ImVec2(cx + 4 * s, midY - 2 * s), ImVec2(cx, midY + 3 * s),
+                          hovered ? kText : kTextDim);
+    if (!ok) {
+        const char* hint = "NO DATA";
+        TextRight(dl, c.f->label, ImVec2(pill.Min.x - 10 * s, midY - c.f->label->FontSize * 0.5f), kRed, hint);
+    }
+    return hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
 }
 
 void SceneOverlay(const Ctx& c, const TelemetryFrame& f, const SceneRect& r, bool placeholder)
@@ -808,12 +796,39 @@ void ApplyStyle(float scale)
     st.FrameRounding = 6.0f;
     st.ScrollbarSize = 8.0f;
     st.Colors[ImGuiCol_Border] = ImVec4(0.15f, 0.28f, 0.44f, 0.55f);
-    st.Colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(kText);
+    auto col = [](ImU32 c, float a = 1.0f) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(c); v.w *= a; return v; };
+    st.Colors[ImGuiCol_Text] = col(kText);
+    st.Colors[ImGuiCol_TextDisabled] = col(kTextFaint);
+    st.Colors[ImGuiCol_PopupBg] = ImVec4(0.035f, 0.055f, 0.095f, 0.98f);
+    st.Colors[ImGuiCol_TitleBg] = st.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.05f, 0.08f, 0.14f, 1.0f);
+    st.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.55f);
+    st.Colors[ImGuiCol_FrameBg] = col(kCard);
+    st.Colors[ImGuiCol_FrameBgHovered] = col(kCardHi);
+    st.Colors[ImGuiCol_FrameBgActive] = col(kCardHi);
+    st.Colors[ImGuiCol_Button] = col(kCardHi);
+    st.Colors[ImGuiCol_ButtonHovered] = col(kAccent, 0.55f);
+    st.Colors[ImGuiCol_ButtonActive] = col(kAccent, 0.8f);
+    st.Colors[ImGuiCol_Header] = col(kAccent, 0.22f);
+    st.Colors[ImGuiCol_HeaderHovered] = col(kAccent, 0.32f);
+    st.Colors[ImGuiCol_HeaderActive] = col(kAccent, 0.45f);
+    st.Colors[ImGuiCol_TableHeaderBg] = col(kCardHi);
+    st.Colors[ImGuiCol_TableRowBgAlt] = ImVec4(1, 1, 1, 0.025f);
+    st.Colors[ImGuiCol_TableBorderLight] = col(kBorder, 0.5f);
+    st.Colors[ImGuiCol_TableBorderStrong] = col(kBorder);
+    st.Colors[ImGuiCol_Separator] = col(kBorder, 0.7f);
+    st.Colors[ImGuiCol_CheckMark] = col(kAccent);
+    st.Colors[ImGuiCol_TextSelectedBg] = col(kAccent, 0.35f);
+    st.Colors[ImGuiCol_NavHighlight] = col(kAccent);
+    st.FramePadding = ImVec2(8.0f, 5.0f);
+    st.PopupRounding = 10.0f;
+    st.CellPadding = ImVec2(6.0f, 4.0f);
     st.ScaleAllSizes(scale);
 }
 
-SceneRect DrawDashboard(const Telemetry& t, const UiFonts& fonts, float s, double time, bool placeholderModel)
+SceneRect DrawDashboard(Telemetry& t, SourceConfig& sources, const UiFonts& fonts, float s, double time,
+                        bool placeholderModel)
 {
+    static bool sourceWindowOpen = false;
     const Ctx c{&fonts, s, time};
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     const float topH = 56 * s;
@@ -821,7 +836,7 @@ SceneRect DrawDashboard(const Telemetry& t, const UiFonts& fonts, float s, doubl
     const float sideW = std::clamp(display.x * 0.26f, 330 * s, 460 * s);
     const float panelH = display.y - topH - margin * 2;
 
-    TopBar(c, t, display.x, topH);
+    if (TopBar(c, t, display.x, topH, !sourceWindowOpen)) sourceWindowOpen = true;
 
     BeginSidePanel("##left", ImVec2(margin, topH + margin), ImVec2(sideW, panelH), s);
     LeftPanel(c, t.frame(), t.history());
@@ -833,5 +848,7 @@ SceneRect DrawDashboard(const Telemetry& t, const UiFonts& fonts, float s, doubl
 
     SceneRect scene{ImVec2(margin * 2 + sideW, topH), ImVec2(display.x - margin * 2 - sideW, display.y - margin)};
     SceneOverlay(c, t.frame(), scene, placeholderModel);
+
+    DrawSourceWindow(&sourceWindowOpen, sources, t, fonts, s);
     return scene;
 }

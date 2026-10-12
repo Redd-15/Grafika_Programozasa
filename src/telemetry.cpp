@@ -141,9 +141,8 @@ public:
         f.steeringDeg = drive * (85.0f * std::sin(0.42f * ts) + 30.0f * std::sin(1.3f * ts + 0.5f)) + noise(0.8f);
         f.steeringDeg = std::clamp(f.steeringDeg, -120.0f, 120.0f);
 
-        // --- Settings (the driver "turns the knobs" now and then) ----------
+        // --- Settings (the driver changes one now and then) ---------------
         CarSettings& s = f.settings;
-        s.selected = static_cast<int>(t / 4.0f) % CarSettings::kCount;
         const int changeSlot = static_cast<int>(t / 20.0f);
         if (changeSlot != lastChangeSlot_) {
             lastChangeSlot_ = changeSlot;
@@ -203,4 +202,12 @@ private:
 std::unique_ptr<TelemetrySource> CreateSimulatedSource()
 {
     return std::make_unique<SimulatedSource>();
+}
+
+void Telemetry::setSource(std::unique_ptr<TelemetrySource> source)
+{
+    source_ = std::move(source);
+    frame_ = TelemetryFrame{};
+    history_ = TelemetryHistory{};
+    sampleAccum_ = 0.0f;
 }

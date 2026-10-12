@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 class Telemetry;
+struct SourceConfig;
 
 struct UiFonts {
     ImFont* label = nullptr;    // small caps labels
@@ -18,5 +19,7 @@ void ApplyStyle(float scale);
 // Screen-space rectangle (ImGui coordinates, origin top-left) left free for the 3D view.
 struct SceneRect { ImVec2 min, max; };
 
-SceneRect DrawDashboard(const Telemetry& telemetry, const UiFonts& fonts, float scale, double time,
+// Also hosts the data-source window (opened from the top-bar pill), which edits `sources`
+// and swaps the telemetry source.
+SceneRect DrawDashboard(Telemetry& telemetry, SourceConfig& sources, const UiFonts& fonts, float scale, double time,
                         bool placeholderModel);

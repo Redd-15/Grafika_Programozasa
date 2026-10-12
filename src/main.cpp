@@ -12,6 +12,7 @@
 #include <string>
 
 #include "car_scene.h"
+#include "data_source.h"
 #include "telemetry.h"
 #include "ui.h"
 
@@ -19,12 +20,18 @@ namespace {
 
 void GlfwError(int code, const char* msg) { std::fprintf(stderr, "GLFW error %d: %s\n", code, msg); }
 
+std::filesystem::path ExeDir(const char* argv0)
+{
+    std::error_code ec;
+    return std::filesystem::absolute(std::filesystem::path(argv0), ec).parent_path();
+}
+
 // Models live next to the executable (copied by the build) or in the working directory.
 std::string FindModelDir(const char* argv0)
 {
     namespace fs = std::filesystem;
     std::error_code ec;
-    fs::path exeDir = fs::absolute(fs::path(argv0), ec).parent_path();
+    const fs::path exeDir = ExeDir(argv0);
     for (const fs::path& p : {exeDir / "assets" / "models", fs::path("assets") / "models"})
         if (fs::is_directory(p, ec)) return p.string();
     return "assets/models";
@@ -93,7 +100,10 @@ int main(int argc, char** argv)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
 
-    Telemetry telemetry(CreateSimulatedSource());
+    // Data-source choice and CAN signal mapping, edited from the top-bar source pill.
+    SourceConfig sources;
+    sources.load((ExeDir(argv[0]) / "data_source.json").string());
+    Telemetry telemetry(CreateSource(sources));
 
     double last = glfwGetTime();
     bool draggingScene = false;
@@ -114,7 +124,7 @@ int main(int argc, char** argv)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        const SceneRect sceneRect = DrawDashboard(telemetry, fonts, scale, now, scene.placeholderBody());
+        const SceneRect sceneRect = DrawDashboard(telemetry, sources, fonts, scale, now, scene.placeholderBody());
 
         // Horizontal orbit: drag with the left mouse button inside the 3D area.
         const ImVec2 mouse = io.MousePos;

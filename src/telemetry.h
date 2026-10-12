@@ -14,7 +14,7 @@ const char* ToString(TSState s);
 const char* ToString(BenderState s);
 const char* ToString(CoolingMode m);
 
-// Values set on the car's dashboard (left knob selects, right knob changes).
+// Values set on the car's dashboard (shown read-only).
 struct CarSettings {
     float powerLimitKw = 80.0f;
     int rpmLimit = 5500;
@@ -22,7 +22,6 @@ struct CarSettings {
     CoolingMode inverterCooling = CoolingMode::Auto;
     int wheelSizeMm = 450;          // tyre outer diameter
     int regenMaxA = 340;
-    int selected = 0;               // index of the row highlighted on the dash
 
     static constexpr int kCount = 6;
 };
@@ -81,7 +80,7 @@ struct TelemetryHistory {
     void push(const TelemetryFrame& f);
 };
 
-// Anything that can produce frames: simulator now, CAN / serial / UDP later.
+// Anything that can produce frames: simulator / UDP.
 class TelemetrySource {
 public:
     virtual ~TelemetrySource() = default;
@@ -102,6 +101,9 @@ public:
     const TelemetryFrame& frame() const { return frame_; }
     const TelemetryHistory& history() const { return history_; }
     const TelemetrySource& source() const { return *source_; }
+    TelemetrySource& source() { return *source_; }
+    // Swaps the data source and clears the frame and history.
+    void setSource(std::unique_ptr<TelemetrySource> source);
 
 private:
     std::unique_ptr<TelemetrySource> source_;
