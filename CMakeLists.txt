@@ -22,7 +22,10 @@ FetchContent_Declare(glm   GIT_REPOSITORY https://github.com/g-truc/glm.git  GIT
 FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.91.9b GIT_SHALLOW TRUE)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
                      DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-FetchContent_MakeAvailable(glfw glm imgui json)
+FetchContent_Declare(cgltf GIT_REPOSITORY https://github.com/jkuhlmann/cgltf.git GIT_TAG v1.15 GIT_SHALLOW TRUE)
+FetchContent_Declare(stb URL https://github.com/nothings/stb/archive/003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5.tar.gz
+                     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(glfw glm imgui json cgltf stb)
 
 add_library(imgui STATIC
   ${imgui_SOURCE_DIR}/imgui.cpp
@@ -41,12 +44,14 @@ add_executable(fs_telemetry
   src/gl_loader.cpp
   src/telemetry.cpp
   src/mesh.cpp
+  src/car_model.cpp
   src/car_scene.cpp
   src/ui.cpp
   src/data_source.cpp
   src/udp_source.cpp
   src/source_panel.cpp)
 target_link_libraries(fs_telemetry PRIVATE imgui glm::glm nlohmann_json::nlohmann_json)
+target_include_directories(fs_telemetry PRIVATE ${cgltf_SOURCE_DIR} ${stb_SOURCE_DIR})
 if(WIN32)
   target_link_libraries(fs_telemetry PRIVATE ws2_32)
 endif()

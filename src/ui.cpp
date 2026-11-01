@@ -750,7 +750,7 @@ bool TopBar(const Ctx& c, const Telemetry& t, float width, float height, bool in
     return hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
 }
 
-void SceneOverlay(const Ctx& c, const TelemetryFrame& f, const SceneRect& r, bool placeholder)
+void SceneOverlay(const Ctx& c, const TelemetryFrame& f, const SceneRect& r, bool placeholder, const char* modelNote)
 {
     const float s = c.s;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
@@ -789,7 +789,15 @@ void SceneOverlay(const Ctx& c, const TelemetryFrame& f, const SceneRect& r, boo
     // Hints / badges.
     const char* hint = "DRAG TO ROTATE";
     TextRight(dl, c.f->label, ImVec2(r.max.x - 8 * s, r.min.y + 12 * s), kTextFaint, hint);
-    if (placeholder) Text(dl, c.f->label, ImVec2(r.min.x + 8 * s, r.min.y + 12 * s), kTextFaint, "PLACEHOLDER MODEL");
+    float badgeY = r.min.y + 12 * s;
+    if (placeholder) {
+        Text(dl, c.f->label, ImVec2(r.min.x + 8 * s, badgeY), kTextFaint, "PLACEHOLDER MODEL");
+        badgeY += c.f->label->FontSize + 4 * s;
+    }
+    if (modelNote[0]) {
+        dl->AddText(c.f->label, c.f->label->FontSize, ImVec2(r.min.x + 8 * s, badgeY), kAmber, modelNote, nullptr,
+                    r.max.x - r.min.x - 16 * s);
+    }
 
     // Big R2D / state banner when not ready to drive.
     if (f.has(FrameField::CarState) && f.carState != CarState::R2D) {
@@ -882,7 +890,7 @@ void ApplyStyle(float scale)
 }
 
 SceneRect DrawDashboard(Telemetry& t, SourceConfig& sources, const UiFonts& fonts, float s, double time,
-                        bool placeholderModel)
+                        bool placeholderModel, const char* modelNote)
 {
     static bool sourceWindowOpen = false;
     const Ctx c{&fonts, s, time};
@@ -903,7 +911,7 @@ SceneRect DrawDashboard(Telemetry& t, SourceConfig& sources, const UiFonts& font
     EndSidePanel();
 
     SceneRect scene{ImVec2(margin * 2 + sideW, topH), ImVec2(display.x - margin * 2 - sideW, display.y - margin)};
-    SceneOverlay(c, t.frame(), scene, placeholderModel);
+    SceneOverlay(c, t.frame(), scene, placeholderModel, modelNote);
 
     DrawSourceWindow(&sourceWindowOpen, sources, t, fonts, s);
     return scene;

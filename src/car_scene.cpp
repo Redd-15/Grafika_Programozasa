@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
+#include <vector>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -78,6 +80,175 @@ void main() {
 
     c = vec3(1.0) - exp(-c * 1.35);            // filmic-ish tone curve
     fragColor = vec4(c, 1.0);
+}
+)";
+
+// Textured car from car.glb: metallic-roughness shading under the same studio lights.
+const char* kPbrVS = R"(#version 330 core
+layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec3 aNormal;
+layout(location = 2) in vec3 aColor;
+layout(location = 3) in vec2 aUV0;
+layout(location = 4) in vec2 aUV1;
+layout(location = 5) in vec4 aTangent;
+uniform mat4 uModel;
+uniform mat4 uViewProj;
+uniform float uMirror;
+out vec3 vWorld;
+out vec3 vNormal;
+out vec3 vTangent;
+out vec3 vBitangent;
+out vec3 vColor;
+out vec2 vUV0;
+out vec2 vUV1;
+void main() {
+    // uModel only rotates parts around their pivots, so it also transforms directions.
+    mat3 rot = mat3(uModel);
+    vec3 n = rot * aNormal;
+    vec3 t = rot * aTangent.xyz;
+    vec3 b = cross(n, t) * aTangent.w;
+    vec3 mirror = vec3(1.0, uMirror, 1.0);
+    vec4 w = uModel * vec4(aPos, 1.0);
+    w.y *= uMirror;
+    vWorld = w.xyz;
+    vNormal = n * mirror;
+    vTangent = t * mirror;
+    vBitangent = b * mirror;
+    vColor = aColor;
+    vUV0 = aUV0;
+    vUV1 = aUV1;
+    gl_Position = uViewProj * w;
+}
+)";
+
+const char* kPbrFS = R"(#version 330 core
+in vec3 vWorld;
+in vec3 vNormal;
+in vec3 vTangent;
+in vec3 vBitangent;
+in vec3 vColor;
+in vec2 vUV0;
+in vec2 vUV1;
+uniform vec3 uCamPos;
+uniform float uReflection;
+uniform sampler2D uBaseColorTex;
+uniform sampler2D uMetallicRoughnessTex;
+uniform sampler2D uNormalTex;
+uniform sampler2D uOcclusionTex;
+uniform sampler2D uEmissiveTex;
+uniform mat3 uUvXform[5];   // one per texture above
+uniform int uUvSet[5];
+uniform vec4 uBaseColor;
+uniform float uMetallic;
+uniform float uRoughness;
+uniform vec3 uEmissive;
+uniform float uNormalScale;
+uniform float uOcclusion;
+uniform float uAlphaCutoff;  // negative = no alpha test
+uniform int uHasNormalMap;
+out vec4 fragColor;
+
+const float kPi = 3.14159265;
+
+vec2 SlotUV(int slot) {
+    vec2 uv = uUvSet[slot] == 1 ? vUV1 : vUV0;
+    return (uUvXform[slot] * vec3(uv, 1.0)).xy;
+}
+
+// Falls back to screen-space derivatives for meshes exported without normals or tangents.
+vec3 ShadingNormal() {
+    vec3 dp1 = dFdx(vWorld);
+    vec3 dp2 = dFdy(vWorld);
+    vec3 N = dot(vNormal, vNormal) > 1e-6 ? vNormal : cross(dp1, dp2);
+    N = normalize(N);
+    if (uHasNormalMap == 0) return N;
+
+    vec2 uv = SlotUV(2);
+    vec3 T = vTangent;
+    vec3 B = vBitangent;
+    if (dot(T, T) < 1e-6) {
+        vec2 duv1 = dFdx(uv);
+        vec2 duv2 = dFdy(uv);
+        T = (duv2.y * dp1 - duv1.y * dp2) * sign(duv1.x * duv2.y - duv2.x * duv1.y);
+        T -= N * dot(N, T);
+        if (dot(T, T) < 1e-12) return N;
+        T = normalize(T);
+        B = cross(N, T);
+    }
+    vec3 m = texture(uNormalTex, uv).xyz * 2.0 - 1.0;
+    m.xy *= uNormalScale;
+    return normalize(T * m.x + B * m.y + N * m.z);
+}
+
+// What shiny surfaces reflect: a floor-to-ceiling gradient like the background, an overhead
+// softbox and a blue strip light along each side. Rougher surfaces see it more blurred.
+vec3 Studio(vec3 d, float roughness) {
+    float spread = 0.05 + roughness * roughness * 0.9;
+    float dim = 1.0 / (1.0 + 3.0 * roughness * roughness);
+    vec3 c = mix(vec3(0.012, 0.016, 0.024), vec3(0.12, 0.15, 0.20), smoothstep(-0.4 - spread, 0.4 + spread, d.y));
+    c += vec3(1.6, 1.55, 1.5) * smoothstep(0.62 - spread, 0.82 + spread, d.y) * dim;
+    float strip = (1.0 - smoothstep(0.0, 0.35 + spread, abs(d.y - 0.18))) * smoothstep(0.25 - spread, 0.7 + spread, abs(d.x));
+    c += vec3(0.45, 0.62, 0.95) * strip * dim;
+    return c;
+}
+
+// Share of the environment a surface reflects (Karis' fit of the split-sum BRDF).
+vec3 EnvironmentBrdf(vec3 F0, float roughness, float NoV) {
+    vec4 r = roughness * vec4(-1.0, -0.0275, -0.572, 0.022) + vec4(1.0, 0.0425, 1.04, -0.04);
+    float a004 = min(r.x * r.x, pow(2.0, -9.28 * NoV)) * r.x + r.y;
+    vec2 ab = vec2(-1.04, 1.04) * a004 + r.zw;
+    return F0 * ab.x + ab.y;
+}
+
+vec3 DirectLight(vec3 L, vec3 radiance, vec3 N, vec3 V, vec3 diffuse, vec3 F0, float alpha) {
+    float NoL = dot(N, L);
+    if (NoL <= 0.0) return vec3(0.0);
+    vec3 H = normalize(L + V);
+    float NoV = max(dot(N, V), 1e-3);
+    float NoH = max(dot(N, H), 0.0);
+    float VoH = max(dot(V, H), 0.0);
+    float a2 = alpha * alpha;
+    float d = NoH * NoH * (a2 - 1.0) + 1.0;
+    float D = a2 / (kPi * d * d);
+    float G = 0.5 / (NoL * sqrt(NoV * NoV * (1.0 - a2) + a2) + NoV * sqrt(NoL * NoL * (1.0 - a2) + a2));
+    vec3 F = F0 + (vec3(1.0) - F0) * pow(1.0 - VoH, 5.0);
+    return (diffuse * (vec3(1.0) - F) / kPi + vec3(D * G) * F) * radiance * NoL;
+}
+
+void main() {
+    vec4 base = texture(uBaseColorTex, SlotUV(0)) * uBaseColor;
+    base.rgb *= vColor;
+    if (base.a < uAlphaCutoff) discard;
+
+    vec2 mr = texture(uMetallicRoughnessTex, SlotUV(1)).bg;   // glTF: metallic in B, roughness in G
+    float metallic = clamp(mr.x * uMetallic, 0.0, 1.0);
+    float roughness = clamp(mr.y * uRoughness, 0.04, 1.0);
+    float ao = mix(1.0, texture(uOcclusionTex, SlotUV(3)).r, uOcclusion);
+    vec3 emissive = texture(uEmissiveTex, SlotUV(4)).rgb * uEmissive;
+
+    vec3 V = normalize(uCamPos - vWorld);
+    vec3 N = ShadingNormal();
+    if (dot(N, V) < 0.0) N = -N;               // two-sided lighting
+    float NoV = max(dot(N, V), 1e-3);
+
+    vec3 diffuse = base.rgb * (1.0 - metallic);
+    vec3 F0 = mix(vec3(0.04), base.rgb, metallic);
+    float alpha = roughness * roughness;
+
+    vec3 c = DirectLight(normalize(vec3(0.45, 0.85, 0.35)), vec3(3.0, 2.88, 2.7), N, V, diffuse, F0, alpha)
+           + DirectLight(normalize(vec3(-0.6, 0.35, -0.55)), vec3(0.45, 0.65, 1.1), N, V, diffuse, F0, alpha);
+    vec3 ambient = mix(vec3(0.008, 0.010, 0.016), vec3(0.16, 0.19, 0.25), 0.5 + 0.5 * N.y);
+    c += (diffuse * ambient + Studio(reflect(-V, N), roughness) * EnvironmentBrdf(F0, roughness, NoV)) * ao;
+    c += emissive;
+
+    // Contact darkening close to the ground.
+    c *= mix(0.55, 1.0, smoothstep(0.0, 0.22, abs(vWorld.y)));
+
+    if (uReflection > 0.5)
+        c *= 0.32 * exp(-abs(vWorld.y) * 2.5);
+
+    c = vec3(1.0) - exp(-c * 1.35);            // filmic-ish tone curve
+    fragColor = vec4(pow(c, vec3(1.0 / 2.2)), base.a);
 }
 )";
 
@@ -372,6 +543,7 @@ CarScene::CarScene() = default;
 CarScene::~CarScene()
 {
     if (meshProgram_) glDeleteProgram(meshProgram_);
+    if (pbrProgram_) glDeleteProgram(pbrProgram_);
     if (floorProgram_) glDeleteProgram(floorProgram_);
     if (bgProgram_) glDeleteProgram(bgProgram_);
     if (emptyVao_) glDeleteVertexArrays(1, &emptyVao_);
@@ -385,19 +557,61 @@ bool CarScene::init(const std::string& modelDir, std::string* error)
     if (!meshProgram_ || !floorProgram_ || !bgProgram_) return false;
     glGenVertexArrays(1, &emptyVao_);
 
-    MeshBuilder body, wheel, sw;
-    placeholderBody_ = !LoadObj(modelDir + "/body.obj", body, kBodyWhite);
-    if (placeholderBody_) BuildPlaceholderBody(body, geo_);
-    if (!LoadObj(modelDir + "/wheel.obj", wheel, glm::vec3(0.1f))) BuildPlaceholderWheel(wheel, kModelWheelRadius);
-    if (!LoadObj(modelDir + "/steering_wheel.obj", sw, kCarbon)) BuildPlaceholderSteeringWheel(sw);
-    body_.upload(body);
-    wheel_.upload(wheel);
-    steeringWheel_.upload(sw);
+    if (loadModel(modelDir + "/car.glb")) {
+        placeholderBody_ = false;
+    } else {
+        MeshBuilder body, wheel, sw;
+        placeholderBody_ = !LoadObj(modelDir + "/body.obj", body, kBodyWhite);
+        if (placeholderBody_) BuildPlaceholderBody(body, geo_);
+        if (!LoadObj(modelDir + "/wheel.obj", wheel, glm::vec3(0.1f))) BuildPlaceholderWheel(wheel, kModelWheelRadius);
+        if (!LoadObj(modelDir + "/steering_wheel.obj", sw, kCarbon)) BuildPlaceholderSteeringWheel(sw);
+        body_.upload(body);
+        wheel_.upload(wheel);
+        steeringWheel_.upload(sw);
+    }
+    if (!modelNote_.empty()) std::fprintf(stderr, "car.glb: %s", modelNote_.c_str());
 
     MeshBuilder floor;
     const float e = 6.0f;
     floor.addQuad({-e, 0, -e}, {-e, 0, e}, {e, 0, e}, {e, 0, -e}, glm::vec3(1));
     floor_.upload(floor);
+    return true;
+}
+
+// A broken model never stops the app: the caller falls back and modelNote_ says what happened.
+bool CarScene::loadModel(const std::string& path)
+{
+    if (!std::ifstream(path)) return false;
+
+    pbrProgram_ = LinkProgram(kPbrVS, kPbrFS, &modelNote_);
+    if (!pbrProgram_) {
+        modelNote_ += "\n";
+        return false;
+    }
+    if (!model_.load(path, &modelNote_)) return false;
+
+    const GLuint p = pbrProgram_;
+    glUseProgram(p);
+    const char* const samplers[] = {"uBaseColorTex", "uMetallicRoughnessTex", "uNormalTex", "uOcclusionTex", "uEmissiveTex"};
+    for (int i = 0; i < 5; ++i) glUniform1i(glGetUniformLocation(p, samplers[i]), i);
+    glUseProgram(0);
+    pbr_ = {glGetUniformLocation(p, "uModel"),       glGetUniformLocation(p, "uBaseColor"),
+            glGetUniformLocation(p, "uMetallic"),    glGetUniformLocation(p, "uRoughness"),
+            glGetUniformLocation(p, "uEmissive"),    glGetUniformLocation(p, "uNormalScale"),
+            glGetUniformLocation(p, "uOcclusion"),   glGetUniformLocation(p, "uAlphaCutoff"),
+            glGetUniformLocation(p, "uHasNormalMap"), glGetUniformLocation(p, "uUvSet"),
+            glGetUniformLocation(p, "uUvXform")};
+
+    // Use the real car's dimensions (the floor shadow follows the track).
+    if (model_.hasPart(CarPart::WheelFL) && model_.hasPart(CarPart::WheelFR) && model_.hasPart(CarPart::WheelRL) &&
+        model_.hasPart(CarPart::WheelRR)) {
+        const glm::vec3 fl = model_.pivot(CarPart::WheelFL), fr = model_.pivot(CarPart::WheelFR);
+        const glm::vec3 rl = model_.pivot(CarPart::WheelRL), rr = model_.pivot(CarPart::WheelRR);
+        geo_.frontAxleZ = (fl.z + fr.z) * 0.5f;
+        geo_.wheelbase = geo_.frontAxleZ - (rl.z + rr.z) * 0.5f;
+        geo_.frontTrack = std::abs(fl.x - fr.x);
+        geo_.rearTrack = std::abs(rl.x - rr.x);
+    }
     return true;
 }
 
@@ -446,10 +660,94 @@ glm::mat4 CarScene::steeringWheelTransform() const
     return glm::rotate(m, steeringWheelAngle_, glm::vec3(0, 0, 1));
 }
 
-void CarScene::drawCar(unsigned p, bool reflection)
+// car.glb vertices are in car space and already in place, so parts only rotate around their pivots.
+glm::mat4 CarScene::partTransform(CarPart part) const
+{
+    const glm::mat4 steer = glm::rotate(glm::mat4(1.0f), roadWheelAngle_, glm::vec3(0, 1, 0));
+    const glm::mat4 spin = glm::rotate(glm::mat4(1.0f), wheelSpin_, glm::vec3(1, 0, 0));
+    glm::mat4 rotation(1.0f);
+    switch (part) {
+    case CarPart::WheelFL:
+    case CarPart::WheelFR:   rotation = steer * spin; break;
+    case CarPart::WheelRL:
+    case CarPart::WheelRR:   rotation = spin; break;
+    case CarPart::UprightFL:
+    case CarPart::UprightFR: rotation = steer; break;
+    case CarPart::SteeringWheel: {
+        const float tilt = glm::radians(geo_.steeringWheelTiltDeg);
+        rotation = glm::rotate(glm::mat4(1.0f), steeringWheelAngle_, glm::vec3(0.0f, -std::sin(tilt), std::cos(tilt)));
+        break;
+    }
+    default: return glm::mat4(1.0f);
+    }
+    const glm::vec3 pivot = model_.pivot(part);
+    return glm::translate(glm::mat4(1.0f), pivot) * rotation * glm::translate(glm::mat4(1.0f), -pivot);
+}
+
+void CarScene::bindMaterial(const ModelMaterial& m)
+{
+    const MaterialMap* maps[5] = {&m.baseColor, &m.metallicRoughness, &m.normal, &m.occlusion, &m.emissive};
+    glm::mat3 uvXforms[5];
+    GLint uvSets[5];
+    for (int i = 0; i < 5; ++i) {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glBindTexture(GL_TEXTURE_2D, maps[i]->texture ? maps[i]->texture : model_.whiteTexture());
+        uvXforms[i] = maps[i]->uvTransform;
+        uvSets[i] = maps[i]->uvSet;
+    }
+    glUniformMatrix3fv(pbr_.uvXform, 5, GL_FALSE, glm::value_ptr(uvXforms[0]));
+    glUniform1iv(pbr_.uvSet, 5, uvSets);
+    glUniform4fv(pbr_.baseColor, 1, glm::value_ptr(m.baseColorFactor));
+    glUniform1f(pbr_.metallic, m.metallicFactor);
+    glUniform1f(pbr_.roughness, m.roughnessFactor);
+    glUniform3fv(pbr_.emissive, 1, glm::value_ptr(m.emissiveFactor));
+    glUniform1f(pbr_.normalScale, m.normalScale);
+    glUniform1f(pbr_.occlusion, m.occlusion.texture ? m.occlusionStrength : 0.0f);
+    glUniform1f(pbr_.alphaCutoff, m.alphaMode == AlphaMode::Mask ? m.alphaCutoff : -1.0f);
+    glUniform1i(pbr_.hasNormalMap, m.normal.texture ? 1 : 0);
+}
+
+void CarScene::drawModel(const glm::vec3& eye)
+{
+    glm::mat4 xforms[kCarPartCount];
+    for (int i = 0; i < kCarPartCount; ++i) xforms[i] = partTransform(static_cast<CarPart>(i));
+
+    auto draw = [&](const ModelSurface& s) {
+        glUniformMatrix4fv(pbr_.model, 1, GL_FALSE, glm::value_ptr(xforms[static_cast<int>(s.part)]));
+        bindMaterial(model_.material(s.material));
+        s.mesh.draw();
+    };
+
+    std::vector<const ModelSurface*> transparent;
+    for (const ModelSurface& s : model_.surfaces()) {
+        if (model_.material(s.material).alphaMode == AlphaMode::Blend) transparent.push_back(&s);
+        else draw(s);
+    }
+    if (transparent.empty()) return;
+
+    // Transparent surfaces go last, furthest first, and don't hide each other.
+    auto distance = [&](const ModelSurface* s) {
+        const glm::vec3 d = glm::vec3(xforms[static_cast<int>(s->part)] * glm::vec4(s->center, 1.0f)) - eye;
+        return glm::dot(d, d);
+    };
+    std::sort(transparent.begin(), transparent.end(),
+              [&](const ModelSurface* a, const ModelSurface* b) { return distance(a) > distance(b); });
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    for (const ModelSurface* s : transparent) draw(*s);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
+
+void CarScene::drawCar(unsigned p, const glm::vec3& eye, bool reflection)
 {
     glUniform1f(glGetUniformLocation(p, "uMirror"), reflection ? -1.0f : 1.0f);
     glUniform1f(glGetUniformLocation(p, "uReflection"), reflection ? 1.0f : 0.0f);
+    if (model_.loaded()) {
+        drawModel(eye);
+        return;
+    }
     const GLint gloss = glGetUniformLocation(p, "uGloss");
 
     glUniform1f(gloss, 1.0f);
@@ -503,10 +801,11 @@ void CarScene::render(int fbW, int fbH, SceneViewport vp, float time)
     glClear(GL_DEPTH_BUFFER_BIT);
 
     // 1) Mirrored car = reflection in the glossy floor.
-    glUseProgram(meshProgram_);
-    SetMat4(meshProgram_, "uViewProj", viewProj);
-    glUniform3fv(glGetUniformLocation(meshProgram_, "uCamPos"), 1, glm::value_ptr(eye));
-    drawCar(meshProgram_, true);
+    const GLuint carProgram = model_.loaded() ? pbrProgram_ : meshProgram_;
+    glUseProgram(carProgram);
+    SetMat4(carProgram, "uViewProj", viewProj);
+    glUniform3fv(glGetUniformLocation(carProgram, "uCamPos"), 1, glm::value_ptr(eye));
+    drawCar(carProgram, eye, true);
 
     // 2) Translucent floor over the reflection.
     glDisable(GL_DEPTH_TEST);
@@ -523,10 +822,11 @@ void CarScene::render(int fbW, int fbH, SceneViewport vp, float time)
     // 3) The car itself.
     glEnable(GL_DEPTH_TEST);
     glClear(GL_DEPTH_BUFFER_BIT);
-    glUseProgram(meshProgram_);
-    drawCar(meshProgram_, false);
+    glUseProgram(carProgram);
+    drawCar(carProgram, eye, false);
 
     glDisable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
     glUseProgram(0);
     glViewport(0, 0, fbW, fbH);
 }

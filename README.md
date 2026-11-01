@@ -8,7 +8,7 @@ Real-time telemetry dashboard for a Formula Student car, built with OpenGL 3.3 a
 
 ## Build
 
-Requires CMake ≥ 3.20 and a C++17 compiler. GLFW, GLM, Dear ImGui and nlohmann/json are downloaded automatically.
+Requires CMake ≥ 3.20 and a C++17 compiler. GLFW, GLM, Dear ImGui, nlohmann/json, cgltf and stb_image are downloaded automatically.
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -22,6 +22,7 @@ build/fs_telemetry.exe
 |---|---|
 | `src/telemetry.*` | `TelemetryFrame` data model, 30 s history traces, `TelemetrySource` interface and the simulator |
 | `src/car_scene.*` | 3D scene: part transforms, shaders, reflective floor, orbit camera |
+| `src/car_model.*` | `car.glb` loader: moving parts, materials, textures |
 | `src/mesh.*` | GPU meshes, procedural geometry builder, OBJ loader |
 | `src/ui.*` | Theme, fonts and all dashboard widgets (bars, gauges, charts, tiles) |
 | `src/data_source.*` | Source choice, CAN-signal → dashboard-field mapping, `data_source.json` load/save |
@@ -48,7 +49,45 @@ Other transports (serial, direct CAN) can be added by implementing `TelemetrySou
 
 ## Adding the real car model
 
-Put OBJ files (with optional `.mtl` diffuse colours) in `assets/models/`. Any file that is missing falls back to the placeholder.
+Export the car from Blender as a single glTF binary, `assets/models/car.glb`. It replaces the placeholder and keeps its texture maps. If the file can't be used, the app falls back to the placeholder and shows the reason in amber in the 3D view.
+
+**Orientation:** nose towards −Y (facing you in Blender's Front view), +Z up, car's left at +X, in metres. The app stands the car on the ground and centres it, so its exact position doesn't matter.
+
+**Moving parts** are found by object name. A part can be one object or an Empty with objects below it. Everything else is static body, including the suspension.
+
+| Object name | Contents | Motion |
+|---|---|---|
+| `wheel_FL`, `wheel_FR`, `wheel_RL`, `wheel_RR` | Tyre, rim, brake disc. Axle along X, no camber or toe, or they wobble | Spin, and the front pair steers. Pivots on the centre of the wheel's bounds, so its origin doesn't matter |
+| `upright_FL`, `upright_FR` (optional) | Parts that steer but don't spin | Steers around its wheel |
+| `steering_wheel` | Steering wheel. **Put its origin on the column axis** | Turns around its origin. Set the column angle in `steeringWheelTiltDeg` in `src/car_scene.h` |
+
+When applying transforms, use Ctrl+A > Rotation & Scale rather than All Transforms, which moves the origin. The wheel size setting only changes spin speed, not the size of the model.
+
+**Materials:** use a Principled BSDF with Image Texture nodes wired into it. Base colour, metallic, roughness, normal, emissive and alpha maps are used, along with a second UV map and Mapping node offset, rotation and scale. For ambient occlusion, add a node group named `glTF Material Output` with an `Occlusion` input.
+
+Maps built from nodes (Noise, ColorRamp, Mix) are **dropped by the exporter with no warning**, so bake them to images first. Clearcoat, transmission and other glTF material extensions are ignored.
+
+**Export** with File > Export > glTF 2.0:
+
+| Setting | Value |
+|---|---|
+| Format | glTF Binary (.glb) |
+| Include > Limit to | Visible Objects |
+| Transform > +Y Up | On |
+| Mesh > Apply Modifiers | On |
+| Mesh > UVs, Normals | On |
+| Mesh > Tangents | On if you use normal maps |
+| Material > Images | Automatic |
+| Compression | Off |
+| Animation | Off |
+
+Blender can't compute tangents for meshes with n-gons, so it logs `Could not calculate tangents` and exports them without any. The app then estimates tangents per pixel, which is lower quality, so add a Triangulate modifier to those meshes if they use normal maps.
+
+The car is drawn twice per frame because of the floor reflection, so decimate CAD-derived meshes. As a rule of thumb, start around 500k triangles and 2K textures. GitHub rejects files over 100 MB, so a bigger `car.glb` needs Git LFS or should stay out of the repository.
+
+### Without textures
+
+If there's no `car.glb`, OBJ files (with optional `.mtl` diffuse colours) in `assets/models/` are used instead. Any file that is missing falls back to the placeholder.
 
 | File | Convention |
 |---|---|

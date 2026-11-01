@@ -1,12 +1,13 @@
 // 3D view of the car: body, four wheels and the steering wheel are separate
 // parts so the wheels can steer/spin and the steering wheel can turn from
-// telemetry. Each part is loaded from assets/models/*.obj if present,
-// otherwise a procedural placeholder is used.
+// telemetry. The whole car comes from assets/models/car.glb if present. Otherwise
+// each part is loaded from assets/models/*.obj, or a procedural placeholder is used.
 #pragma once
 #include <string>
 
 #include <glm/glm.hpp>
 
+#include "car_model.h"
 #include "mesh.h"
 
 struct TelemetryFrame;
@@ -38,16 +39,28 @@ public:
     void release() { dragging_ = false; }
 
     bool placeholderBody() const { return placeholderBody_; }
+    const std::string& modelNote() const { return modelNote_; }   // problems with car.glb, shown in the 3D view
     const CarGeometry& geometry() const { return geo_; }
 
 private:
-    void drawCar(unsigned program, bool reflection);
+    struct PbrUniforms {
+        int model, baseColor, metallic, roughness, emissive, normalScale, occlusion, alphaCutoff, hasNormalMap, uvSet, uvXform;
+    };
+
+    bool loadModel(const std::string& path);
+    void drawCar(unsigned program, const glm::vec3& eye, bool reflection);
+    void drawModel(const glm::vec3& eye);
+    void bindMaterial(const ModelMaterial& material);
     glm::mat4 wheelTransform(int index) const;
     glm::mat4 steeringWheelTransform() const;
+    glm::mat4 partTransform(CarPart part) const;
 
     CarGeometry geo_;
+    CarModel model_;
+    std::string modelNote_;
     Mesh body_, wheel_, steeringWheel_, floor_;
-    unsigned meshProgram_ = 0, floorProgram_ = 0, bgProgram_ = 0, emptyVao_ = 0;
+    unsigned meshProgram_ = 0, pbrProgram_ = 0, floorProgram_ = 0, bgProgram_ = 0, emptyVao_ = 0;
+    PbrUniforms pbr_{};
     bool placeholderBody_ = true;
 
     float wheelRadius_ = 0.225f;

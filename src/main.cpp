@@ -131,7 +131,8 @@ int main(int argc, char** argv)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        const SceneRect sceneRect = DrawDashboard(telemetry, sources, fonts, scale, now, scene.placeholderBody());
+        const SceneRect sceneRect =
+            DrawDashboard(telemetry, sources, fonts, scale, now, scene.placeholderBody(), scene.modelNote().c_str());
 
         // Horizontal orbit: drag with the left mouse button inside the 3D area.
         const ImVec2 mouse = io.MousePos;
