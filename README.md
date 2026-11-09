@@ -64,6 +64,18 @@ Click the source pill in the top bar (for example `SIMULATION` or `UDP :5005`) t
 
   To bind a value, select it on the left of the window, then click a signal in the live list on the right. You can also type a path, or just the end of one (`SOC`, `BMS_Status.signals.SOC`). Each binding has a scale and offset (`value = raw * scale + offset`). State fields (car state, TS state, Bender, cooling) accept either the state name as text (`"R2D"`) or its index as a number.
 
+### Testing without the car: `can_sim`
+
+`build/can_sim.exe` sends simulated car data over UDP in the same JSON format as the car's Node-RED flow. It uses DBC message and signal names, physical values, raw steering counts and DBC enum numbers. The values come from the built-in simulator, so you see the same lap as in SIMULATION mode, but going through the whole UDP → signal-mapping path.
+
+```sh
+build/can_sim.exe                      # to 127.0.0.1:7777 at 10 Hz
+build/can_sim.exe --no-tsac            # like the car without its accumulator (no AMS_Stat)
+build/can_sim.exe --host 192.168.1.103 --port 7777 --rate 4 --duration 60
+```
+
+Set the dashboard's data source to UDP / JSON on the same port.
+
 Other transports (serial, direct CAN) can be added by implementing `TelemetrySource` and constructing it in `CreateSource()`. `update()` runs on the UI thread, so a blocking reader should run on its own thread, like `UdpSource`.
 
 ## Adding the real car model

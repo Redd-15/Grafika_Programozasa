@@ -39,9 +39,8 @@ add_library(imgui STATIC
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${imgui_SOURCE_DIR}/misc/cpp)
 target_link_libraries(imgui PUBLIC glfw)
 
-add_executable(fs_telemetry
-  src/main.cpp
-  # Model: data and calculations (no OpenGL / ImGui)
+# Model: data and calculations (no OpenGL / ImGui). A library so tools can reuse it.
+add_library(fs_model STATIC
   src/model/alarms.cpp
   src/model/car.cpp
   src/model/car_state.cpp
@@ -51,7 +50,16 @@ add_executable(fs_telemetry
   src/model/sources/signal_mapping.cpp
   src/model/sources/simulated_source.cpp
   src/model/sources/source_config.cpp
-  src/model/sources/udp_source.cpp
+  src/model/sources/udp_source.cpp)
+target_include_directories(fs_model PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(fs_model PUBLIC glm::glm nlohmann_json::nlohmann_json)
+target_compile_definitions(fs_model PUBLIC GLM_ENABLE_EXPERIMENTAL)
+if(WIN32)
+  target_link_libraries(fs_model PUBLIC ws2_32)
+endif()
+
+add_executable(fs_telemetry
+  src/main.cpp
   # View: rendering only
   src/view/gl/gl_loader.cpp
   src/view/gl/mesh.cpp
@@ -68,17 +76,18 @@ add_executable(fs_telemetry
   src/controller/application.cpp
   src/controller/scene_controller.cpp
   src/controller/source_controller.cpp)
-target_include_directories(fs_telemetry PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(fs_telemetry PRIVATE imgui glm::glm nlohmann_json::nlohmann_json)
+target_link_libraries(fs_telemetry PRIVATE fs_model imgui)
 target_include_directories(fs_telemetry PRIVATE ${cgltf_SOURCE_DIR} ${stb_SOURCE_DIR})
-if(WIN32)
-  target_link_libraries(fs_telemetry PRIVATE ws2_32)
-endif()
-target_compile_definitions(fs_telemetry PRIVATE GLFW_INCLUDE_NONE GLM_ENABLE_EXPERIMENTAL)
+target_compile_definitions(fs_telemetry PRIVATE GLFW_INCLUDE_NONE)
+
+# Test tool: sends simulated CAN messages (DBC names, as Node-RED does) over UDP.
+add_executable(can_sim tools/can_sim/main.cpp)
+target_link_libraries(can_sim PRIVATE fs_model)
 
 if(MINGW)
-  # Self-contained exe that runs outside the MSYS2 shell.
+  # Self-contained exes that run outside the MSYS2 shell.
   target_link_options(fs_telemetry PRIVATE -static -static-libgcc -static-libstdc++)
+  target_link_options(can_sim PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 if(MINGW)
   # No console window in Release builds (MinGW's CRT still calls main()).
