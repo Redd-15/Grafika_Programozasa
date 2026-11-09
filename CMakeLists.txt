@@ -41,15 +41,34 @@ target_link_libraries(imgui PUBLIC glfw)
 
 add_executable(fs_telemetry
   src/main.cpp
-  src/gl_loader.cpp
-  src/telemetry.cpp
-  src/mesh.cpp
-  src/car_model.cpp
-  src/car_scene.cpp
-  src/ui.cpp
-  src/data_source.cpp
-  src/udp_source.cpp
-  src/source_panel.cpp)
+  # Model: data and calculations (no OpenGL / ImGui)
+  src/model/alarms.cpp
+  src/model/car.cpp
+  src/model/car_state.cpp
+  src/model/telemetry.cpp
+  src/model/telemetry_history.cpp
+  src/model/sources/json_flatten.cpp
+  src/model/sources/signal_mapping.cpp
+  src/model/sources/simulated_source.cpp
+  src/model/sources/source_config.cpp
+  src/model/sources/udp_source.cpp
+  # View: rendering only
+  src/view/gl/gl_loader.cpp
+  src/view/gl/mesh.cpp
+  src/view/gl/shader.cpp
+  src/view/scene/car_renderer.cpp
+  src/view/scene/gltf_car.cpp
+  src/view/scene/orbit_camera.cpp
+  src/view/scene/placeholder_car.cpp
+  src/view/ui/dashboard_view.cpp
+  src/view/ui/source_window.cpp
+  src/view/ui/style.cpp
+  src/view/ui/widgets.cpp
+  # Controller: main loop, input, actions
+  src/controller/application.cpp
+  src/controller/scene_controller.cpp
+  src/controller/source_controller.cpp)
+target_include_directories(fs_telemetry PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(fs_telemetry PRIVATE imgui glm::glm nlohmann_json::nlohmann_json)
 target_include_directories(fs_telemetry PRIVATE ${cgltf_SOURCE_DIR} ${stb_SOURCE_DIR})
 if(WIN32)
